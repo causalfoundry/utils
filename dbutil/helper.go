@@ -288,8 +288,10 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 		Values(vals...)
 	if len(returning) != 0 {
 		base = base.Suffix("RETURNING " + strings.Join(returning, ","))
+		err = base.RunWith(con).QueryRow().Scan(&id)
+	} else {
+		_, err = base.RunWith(con).Exec()
 	}
-	err = base.RunWith(con).QueryRow().Scan(&id)
 	if err != nil {
 		log.Err(err).Interface("req", req).Str("table", table).Msg("error create")
 	}
