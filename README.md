@@ -2,7 +2,7 @@
 
 This is a collection of common helper functions we use in building http services in Golang. It provides several services as follows:
 - Basic project structure such as `config` object. 
-- Also a quick setup for local integration test frameworks with docker & database.
+- Also a quick setup for local integration test frameworks with docker & database (postgres).
 - Some basic HTTP frameworks regarding authentication & marshaling payload from requests
 
 These are commonly used functions in multiple of the http services we have in the team.
@@ -13,7 +13,7 @@ This repo assume the project structure as follows:
 ```
 <app_root>
   - config.yml
-  - migrations/<postgres_migrations>
+  - migrations/postgres/<postgres_migrations>
   - <other app code>
 ```
 ### App root
