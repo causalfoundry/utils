@@ -1,7 +1,7 @@
 package testapp
 
 import (
-	"causalfoundry/utils/iokit"
+	"github.com/causalfoundry/utils/iokit"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

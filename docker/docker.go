@@ -1,10 +1,10 @@
 package docker
 
 import (
-	"causalfoundry/utils/config"
-	"causalfoundry/utils/util"
 	"database/sql"
 	"fmt"
+	"github.com/causalfoundry/utils/config"
+	"github.com/causalfoundry/utils/util"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"

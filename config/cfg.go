@@ -1,9 +1,9 @@
 package config
 
 import (
-	"causalfoundry/utils/util"
 	"encoding/base64"
 	"fmt"
+	"github.com/causalfoundry/utils/util"
 	"os"
 	"strings"
 

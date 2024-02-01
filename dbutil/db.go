@@ -1,8 +1,8 @@
 package dbtuil
 
 import (
-	"causalfoundry/utils/config"
 	"fmt"
+	"github.com/causalfoundry/utils/config"
 	"time"
 
 	"github.com/Masterminds/squirrel"

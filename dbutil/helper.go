@@ -1,9 +1,9 @@
 package dbtuil
 
 import (
-	"causalfoundry/utils/util"
 	"database/sql"
 	"fmt"
+	"github.com/causalfoundry/utils/util"
 	"net/http"
 	"strings"
 
