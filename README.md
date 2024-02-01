@@ -10,11 +10,11 @@ Underlying HTTP framework is [echo](https://github.com/labstack/echo).
 
 ## Assumption
 This repo assume the project structure as follows:
-
+```
 <app_root>
   - config.yml
   - migrations/<postgres_migrations>
   - <other app code>
-
+```
 ### App root
 The <app root> should be a unique name in the path, and it's relative position with regard to `config.yml` and `migrations/` should be fixed as above.
