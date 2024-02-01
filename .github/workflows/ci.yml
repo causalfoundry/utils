@@ -15,7 +15,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.20' # Use the version of Go your project requires
+        go-version: '1.20'
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v3
@@ -26,8 +26,8 @@ jobs:
     - name: Install golangci-lint
       uses: golangci/golangci-lint-action@v3
       with:
-        version: latest # Use the latest version of golangci-lint
-        args: --issues-exit-code=0 # Optional: set exit code to 0 to prevent pipeline failure on warnings
+        version: latest
+        args: --issues-exit-code=0
 
     - name: Run golangci-lint
       run: golangci-lint run ./...
