@@ -33,5 +33,5 @@ jobs:
       run: golangci-lint run ./...
 
     - name: Test
-      run: go test ./...
+      run: make test
 
