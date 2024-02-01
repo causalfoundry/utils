@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+func ExtractDBTags(input any) (tags []string, vals []any) {
+	return ExtractTags(input, "db")
+}
+
 func ExtractTags(input any, tagName string) (tags []string, vals []any) {
 	val := reflect.ValueOf(input)
 	typ := reflect.TypeOf(input)

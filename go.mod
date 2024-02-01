@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.2
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/labstack/echo/v4 v4.11.4
+	github.com/rs/zerolog v1.31.0
 )
 
 require (
