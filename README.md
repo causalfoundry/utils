@@ -1,4 +1,4 @@
-## Utils
+## Utils (still work-in-progress)
 
 This is a collection of common helper functions we use in building http services in Golang. It provides several services as follows:
 - Basic project structure such as `config` object. 
