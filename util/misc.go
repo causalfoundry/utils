@@ -120,7 +120,6 @@ func JoinByComma[T any](t []T) string {
 	return strings.Join(ret, ", ")
 }
 
-
 func ReadCSVFile(filename string) (map[string][]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
