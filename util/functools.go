@@ -490,3 +490,32 @@ func Intersect[T string | int | float64](a, b []T) (ret []T) {
 	return
 }
 
+func MapIf[T, R any](arr []T, fn func(T) R, pred func(T) bool) (ret []R) {
+	ret = make([]R, 0)
+	for _, a := range Filter(arr, pred) {
+		ret = append(ret, fn(a))
+	}
+	return
+}
+
+func FindAll[T any](arr []T, fn func(T) bool) (ret []T) {
+	for _, a := range arr {
+		if fn(a) {
+			ret = append(ret, a)
+		}
+	}
+	return ret
+}
+
+func FindOne[T any](arr []T, fn func(T) bool) (ret T) {
+	for _, a := range arr {
+		if fn(a) {
+			return a
+		}
+	}
+	return ret
+}
+
+func Random[T any](arr []T) T {
+	return arr[rand.Intn(len(arr))]
+}
