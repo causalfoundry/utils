@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
@@ -167,7 +169,7 @@ func GetPayloads[T any](ctx echo.Context) (t []T, err error) {
 	return
 }
 
-func GetQuery[T int | string](ctx echo.Context, name string) (t T, err error) {
+func GetQuery[T int | string | bool](ctx echo.Context, name string) (t T, err error) {
 	switch any(t).(type) {
 	case int:
 		tt, err := strconv.Atoi(ctx.QueryParam(name))
@@ -178,6 +180,15 @@ func GetQuery[T int | string](ctx echo.Context, name string) (t T, err error) {
 		t = any(tt).(T)
 	case string:
 		t = any(ctx.QueryParam(name)).(T)
+	case bool:
+		switch ctx.QueryParam(name) {
+		case "true":
+			t = any(true).(T)
+		case "false":
+			t = any(false).(T)
+		default:
+			err = errors.New("can only be true/false")
+		}
 	}
 	return
 }
@@ -193,6 +204,24 @@ func GetParam[T int | string](ctx echo.Context, name string) (t T, err error) {
 		t = any(tt).(T)
 	case string:
 		t = any(ctx.Param(name)).(T)
+	}
+	return
+}
+
+func GetIDsByComma[T int | string](ctx echo.Context) (ret []T, err error) {
+	ids := ctx.Param("ids")
+	split := strings.Split(ids, ",")
+	for _, s := range split {
+		switch any(*new(T)).(type) {
+		case int:
+			n, err := strconv.Atoi(s)
+			if err != nil {
+				return ret, err
+			}
+			ret = append(ret, any(n).(T))
+		case string:
+			ret = append(ret, any(s).(T))
+		}
 	}
 	return
 }
