@@ -329,6 +329,17 @@ func NewHttpTestKit(engine *echo.Echo, r RequestCfg) ReqCtx {
 	}
 }
 
-func ParamInt(ctx echo.Context, name string) (int, error) {
-	return strconv.Atoi(ctx.Param(name))
+func MarshalResp[T any](resp *http.Response) (ret T, err error) {
+	defer resp.Body.Close()
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(body, &ret)
+	if err != nil {
+		return
+	}
+	err = Validator.Struct(&ret)
+	return
 }
