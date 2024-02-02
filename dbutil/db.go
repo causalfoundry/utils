@@ -43,6 +43,7 @@ func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 		panic("cannot ping postgres: " + err.Error())
 	}
 
+	dcfg.SetDefault()
 	db.SetMaxOpenConns(dcfg.MaxOpenConn)
 	db.SetConnMaxIdleTime(dcfg.ConnMaxIdleTime)
 	db.SetMaxIdleConns(dcfg.MaxIdelConn)
