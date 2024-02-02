@@ -68,7 +68,7 @@ func TestGetPayload(t *testing.T) {
 
 		g, err := GetPayload[greet](kit.Ctx)
 		assert.NotNil(t, err)
-		assert.Equal(t, err.(*echo.HTTPError).Code, http.StatusBadRequest)
+		assert.Equal(t, err.(Err).Code, http.StatusBadRequest)
 		assert.Equal(t, g.Greet, "hello")
 		assert.Equal(t, g.Target, "")
 	})

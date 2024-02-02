@@ -140,26 +140,6 @@ func CheckHeaderEqual(ctx echo.Context, header, value string) bool {
 	return ctx.Request().Header.Get(header) == value
 }
 
-func OkJSON(ctx echo.Context, data any) error {
-	return ctx.JSON(http.StatusOK, data)
-}
-
-func ErrBadRequest(msg string) error {
-	return echo.NewHTTPError(http.StatusBadRequest, msg)
-}
-
-func ErrInternal(msg string) error {
-	return echo.NewHTTPError(http.StatusInternalServerError, msg)
-}
-
-func ErrUnauthorized(msg string) error {
-	return echo.NewHTTPError(http.StatusUnauthorized, msg)
-}
-
-func ErrForbidden(msg string) error {
-	return echo.NewHTTPError(http.StatusForbidden, msg)
-}
-
 func GetPayloads[T any](ctx echo.Context) (t []T, err error) {
 	payload := ctx.Get("payload")
 
