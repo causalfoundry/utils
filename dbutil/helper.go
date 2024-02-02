@@ -1,4 +1,4 @@
-package dbtuil
+package dbutil
 
 import (
 	"database/sql"

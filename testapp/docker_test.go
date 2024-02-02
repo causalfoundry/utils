@@ -1,16 +1,29 @@
 package testapp
 
 import (
-	"github.com/causalfoundry/utils/iokit"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/causalfoundry/utils/dbutil"
+	"github.com/causalfoundry/utils/docker"
+	"github.com/causalfoundry/utils/util"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetupLocalStorage(t *testing.T) {
-	kit := iokit.NewKit()
+func url(dbName string) string {
+	baseUrl := "host=localhost port=5432 dbname=<name> user=user password=pwd sslmode=disable"
+	return strings.ReplaceAll(baseUrl, "<name>", dbName)
+}
 
-	r, err := kit.DB.Exec("INSERT INTO test (id, v) VALUES (1,1)")
+func TestSetupLocalStorage(t *testing.T) {
+	dbName := util.RandomAlphabets(10, true)
+	path, err := os.Getwd()
+	util.Panic(err)
+	docker.SetupLocalStorage(dbName, "postgres", url("postgres"), path+"/migrations/postgres")
+
+	db := dbutil.NewDB(dbName, url(dbName), dbutil.DBConfig{})
+	r, err := db.Exec("INSERT INTO test (id, v) VALUES (1,1)")
 	assert.Nil(t, err)
 	affect, err := r.RowsAffected()
 	assert.Nil(t, err)

@@ -1,8 +1,7 @@
-package dbtuil
+package dbutil
 
 import (
 	"fmt"
-	"github.com/causalfoundry/utils/config"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -34,8 +33,8 @@ func (d *DBConfig) SetDefault() {
 	}
 }
 
-func NewDB(cfg config.Config, dcfg DBConfig) *sqlx.DB {
-	db, err := sqlx.Open("pgx", cfg.Postgres.GetURL())
+func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
+	db, err := sqlx.Open("pgx", url)
 	if err != nil {
 		panic("cannot get postgres connection: " + err.Error())
 	}
@@ -49,7 +48,7 @@ func NewDB(cfg config.Config, dcfg DBConfig) *sqlx.DB {
 	db.SetMaxIdleConns(dcfg.MaxIdelConn)
 	db.SetConnMaxLifetime(dcfg.ConnMaxLifetime)
 
-	_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", cfg.Postgres.DatabaseName))
+	_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", dbName))
 	if err != nil {
 		panic("Error in setting timezone: " + err.Error())
 	}
