@@ -156,17 +156,21 @@ func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table str
 	return
 }
 
-func ListM[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string, where map[string]any) (ret []T, total int, err error) {
-	if len(where) == 0 {
-		where = util.Obj{"1": 1}
-	}
+func ListM[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string, where map[string]any, orderBy []string) (ret []T, total int, err error) {
 	ret = make([]T, 0)
-	query, args, _ := Psql.Select("*").
-		From(table).
-		Where(where).
+
+	base := Psql.Select("*").From(table)
+
+	if len(where) != 0 {
+		base = base.Where(where)
+	}
+	if len(orderBy) != 0 {
+		base = base.OrderBy(strings.Join(orderBy, ","))
+	}
+
+	query, args, _ := base.
 		Offset(page.Offset()).
 		Limit(page.Limit()).
-		OrderBy("id desc").
 		ToSql()
 
 	if err = con.Select(&ret, query, args...); err != nil {
