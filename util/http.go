@@ -76,19 +76,26 @@ func errHandle(ctx echo.Context, err error) error {
 	}
 }
 
-func PostJSON[REQ, RESP any](req REQ, url string) (ret RESP, err error) {
-	if err = Validator.Struct(req); err != nil {
-		return
-	}
-
+func PostJSONWH[REQ, RESP any](req REQ, url string, extraHeader map[string]string) (ret RESP, err error) {
 	bs, err := json.Marshal(req)
 	if err != nil {
 		return
 	}
+	_req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(bs))
+	if err != nil {
+		return
+	}
 
-	resp, e := http.Post(url, "application/json", bytes.NewBuffer(bs))
-	if e != nil {
-		err = fmt.Errorf("error post request: %w", e)
+	// Add header to the request
+	_req.Header.Add("Content-Type", "application/json")
+	for k, v := range extraHeader {
+		_req.Header.Add(k, v)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(_req)
+	if err != nil {
+		err = fmt.Errorf("error post request: %w", err)
 		return
 	}
 
@@ -103,17 +110,16 @@ func PostJSON[REQ, RESP any](req REQ, url string) (ret RESP, err error) {
 		return
 	}
 
-	if e = json.Unmarshal(b, &ret); e != nil {
-		err = fmt.Errorf("error in unmarshalling response, err: %w, response: %s", e, string(b))
+	if len(b) == 0 {
 		return
 	}
-
-	if e = Validator.Struct(ret); e != nil {
-		err = fmt.Errorf("response not valid, err: %w, response: %+v", e, ret)
-		return
-	}
-
+	err = json.Unmarshal(b, &ret)
 	return
+
+}
+
+func PostJSON[REQ, RESP any](req REQ, url string) (ret RESP, err error) {
+	return PostJSONWH[REQ, RESP](req, url, nil)
 }
 
 // ToMid
