@@ -1,6 +1,7 @@
 package util
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,11 +11,108 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 const PostgresPlaceholderLimit = 65535
 
 var Psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+type DBConfig struct {
+	MaxOpenConn     int
+	MaxIdelConn     int
+	ConnMaxIdleTime time.Duration
+	ConnMaxLifetime time.Duration
+}
+
+func (d *DBConfig) SetDefault() {
+	if d.MaxOpenConn == 0 {
+		d.MaxOpenConn = 100
+	}
+	if d.MaxIdelConn == 0 {
+		d.MaxIdelConn = 10
+	}
+	if d.ConnMaxIdleTime == 0 {
+		d.ConnMaxIdleTime = time.Second * 60
+	}
+	if d.ConnMaxLifetime == 0 {
+		d.ConnMaxLifetime = time.Second * 300
+	}
+}
+
+func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
+	db, err := sqlx.Open("pgx", url)
+	if err != nil {
+		panic("cannot get postgres connection: " + err.Error())
+	}
+
+	if err = db.Ping(); err != nil {
+		panic("cannot ping postgres: " + err.Error())
+	}
+
+	dcfg.SetDefault()
+	db.SetMaxOpenConns(dcfg.MaxOpenConn)
+	db.SetConnMaxIdleTime(dcfg.ConnMaxIdleTime)
+	db.SetMaxIdleConns(dcfg.MaxIdelConn)
+	db.SetConnMaxLifetime(dcfg.ConnMaxLifetime)
+
+	_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", dbName))
+	if err != nil {
+		panic("Error in setting timezone: " + err.Error())
+	}
+
+	// Set the timezone for the current session
+	_, err = db.Exec("SET TIMEZONE TO 'UTC'")
+	if err != nil {
+		panic("Error in setting session timezone: " + err.Error())
+	}
+
+	return db
+}
+
+func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
+	db, err := sql.Open("pgx", baseUrl)
+	if err != nil {
+		panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
+	}
+
+	var exist bool
+	row := db.QueryRow("select exists (select 1 from pg_database where datname = $1)", newDB)
+	err = row.Scan(&exist)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !exist {
+		_, err = db.Exec("CREATE DATABASE " + newDB)
+		if err != nil {
+			panic("error create local database: " + err.Error())
+		}
+		db.Close()
+
+		newUrl := strings.ReplaceAll(baseUrl, baseDB, newDB)
+		if db, err = sql.Open("pgx", newUrl); err != nil {
+			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
+		}
+
+		driver, _ := postgres.WithInstance(db, &postgres.Config{})
+		migrateInstance, err := migrate.NewWithDatabaseInstance(
+			"file://"+migrationFile,
+			newDB,
+			driver,
+		)
+		Panic(err)
+
+		err = migrateInstance.Up()
+		if err != nil {
+			Panic(err)
+		}
+	}
+}
 
 func UpdateClause(headers, pks []string, mergeStrategy map[string]string) string {
 	toUpdate := Except(headers, pks)

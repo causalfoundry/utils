@@ -1,9 +1,8 @@
-package dbutil
+package util
 
 import (
 	"database/sql"
 	"fmt"
-	"github.com/causalfoundry/utils/util"
 	"net/http"
 	"strings"
 
@@ -16,15 +15,15 @@ func UpsertManyNoPartition[T any](log zerolog.Logger, con sq.BaseRunner, table s
 	if len(toInsert) == 0 {
 		return
 	}
-	cols, _ := util.ExtractTags(toInsert[0], tag)
+	cols, _ := ExtractTags(toInsert[0], tag)
 	merge := fmt.Sprintf("ON CONFLICT (%s) DO UPDATE SET %s",
 		strings.Join(pks, ","),
-		util.UpdateClause(cols, pks, mergeStrategy))
+		UpdateClause(cols, pks, mergeStrategy))
 
-	helper := util.NewInsertHelper(table, cols, merge, con)
+	helper := NewInsertHelper(table, cols, merge, con)
 
 	for _, t := range toInsert {
-		_, vals := util.ExtractTags(t, "json")
+		_, vals := ExtractTags(t, "json")
 		if err = helper.Add(vals); err != nil {
 			log.Err(err).Msg("error save")
 			return
@@ -39,7 +38,7 @@ func UpsertManyNoPartition[T any](log zerolog.Logger, con sq.BaseRunner, table s
 func UpdateS(log zerolog.Logger, con sq.BaseRunner, table string, where []string, sets map[string]any) (err error) {
 	_, err = Psql.Update(table).
 		SetMap(sets).
-		Where(util.AndWhere(where)).
+		Where(AndWhere(where)).
 		RunWith(con).
 		Exec()
 	if err != nil {
@@ -48,14 +47,14 @@ func UpdateS(log zerolog.Logger, con sq.BaseRunner, table string, where []string
 	return err
 }
 
-func ListS[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string, wheres, order []string) (ret []T, total int, err error) {
+func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, wheres, order []string) (ret []T, total int, err error) {
 	order = append(order, "1")
 
-	col, _ := util.ExtractTags(*new(T), "db")
+	col, _ := ExtractTags(*new(T), "db")
 
 	query, args, _ := Psql.Select(col...).
 		From(table).
-		Where(util.AndWhere(wheres)).
+		Where(AndWhere(wheres)).
 		Offset(page.Offset()).
 		Limit(page.Limit()).
 		OrderBy(strings.Join(order, ",")).
@@ -66,7 +65,7 @@ func ListS[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string
 		return
 	}
 
-	err = Psql.Select("COUNT(*)").From(table).Where(util.AndWhere(wheres)).
+	err = Psql.Select("COUNT(*)").From(table).Where(AndWhere(wheres)).
 		RunWith(con).QueryRow().Scan(&total)
 	if err != nil {
 		log.Err(err).Str("table", table).Msg("error count total")
@@ -77,7 +76,7 @@ func ListS[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string
 func GetS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string) (ret T, err error) {
 	query, args, _ := Psql.Select("*").
 		From(table).
-		Where(util.AndWhere(where)).
+		Where(AndWhere(where)).
 		ToSql()
 
 	if err = con.QueryRowx(query, args...).StructScan(&ret); err != nil {
@@ -88,7 +87,7 @@ func GetS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string)
 
 func GetManyS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string, orderby []string) (ret []T, err error) {
 	query, args, _ := Psql.Select("*").From(table).
-		Where(util.AndWhere(where)).
+		Where(AndWhere(where)).
 		OrderBy(strings.Join(orderby, ",")).
 		ToSql()
 	if err = con.Select(&ret, query, args...); err != nil {
@@ -99,7 +98,7 @@ func GetManyS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []str
 
 func ExistS(log zerolog.Logger, con *sqlx.DB, table string, where []string) (bool, error) {
 	var cnt int
-	query, args, _ := Psql.Select("count(*)").From(table).Where(util.AndWhere(where)).ToSql()
+	query, args, _ := Psql.Select("count(*)").From(table).Where(AndWhere(where)).ToSql()
 	row := con.QueryRow(query, args...)
 	err := row.Scan(&cnt)
 	if err != nil {
@@ -112,13 +111,13 @@ func Delete(log zerolog.Logger, con sq.BaseRunner, table string, where []string)
 	if len(where) == 0 {
 		return nil
 	}
-	if _, err = Psql.Delete(table).Where(util.AndWhere(where)).RunWith(con).Exec(); err != nil {
+	if _, err = Psql.Delete(table).Where(AndWhere(where)).RunWith(con).Exec(); err != nil {
 		log.Err(err).Strs("where", where).Str("table", table).Msg("error delete")
 	}
 	return err
 }
 
-func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string, selects, where, orderby []string) (ret []T, total int, err error) {
+func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, selects, where, orderby []string) (ret []T, total int, err error) {
 	var toSelect = "*"
 	where = append(where, "1=1")
 	orderby = append(orderby, "(SELECT NULL)")
@@ -156,7 +155,7 @@ func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table str
 	return
 }
 
-func ListM[T any](log zerolog.Logger, con *sqlx.DB, page util.Page, table string, where map[string]any, orderBy []string) (ret []T, total int, err error) {
+func ListM[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, where map[string]any, orderBy []string) (ret []T, total int, err error) {
 	ret = make([]T, 0)
 
 	base := Psql.Select("*").From(table)
@@ -211,7 +210,7 @@ func UpdateM(log zerolog.Logger, con sq.BaseRunner, table string, where map[stri
 }
 
 func UpdateWithID(log zerolog.Logger, con sq.BaseRunner, table string, id int, sets map[string]any) (err error) {
-	where := util.Obj{"id": id}
+	where := Obj{"id": id}
 	return UpdateM(log, con, table, where, sets)
 }
 
@@ -251,14 +250,14 @@ func CreateMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs
 		}
 	}
 
-	cols, _ := util.ExtractDBTags(reqs[0])
+	cols, _ := ExtractDBTags(reqs[0])
 
 	base := Psql.Insert(table).Columns(cols...)
 	if len(returning) != 0 {
 		base = base.Suffix("RETURNING " + strings.Join(returning, ","))
 	}
 	for _, req := range reqs {
-		_, vals := util.ExtractDBTags(req)
+		_, vals := ExtractDBTags(req)
 		base = base.Values(vals...)
 	}
 
@@ -286,7 +285,7 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 		}
 	}
 
-	cols, vals := util.ExtractDBTags(req)
+	cols, vals := ExtractDBTags(req)
 	base := Psql.Insert(table).
 		Columns(cols...).
 		Values(vals...)
@@ -321,7 +320,7 @@ func GetM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[strin
 	if err = row.StructScan(&ret); err != nil {
 		log.Err(err).Type("type", ret).Interface("where", where).Str("table", table).Msg("error get")
 		if err == sql.ErrNoRows {
-			err = util.NewErr(http.StatusNotFound, "resource not found", map[string]string{
+			err = NewErr(http.StatusNotFound, "resource not found", map[string]string{
 				"type": fmt.Sprintf("%T", ret),
 			})
 			return

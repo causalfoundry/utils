@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/causalfoundry/utils/dbutil"
-	"github.com/causalfoundry/utils/docker"
 	"github.com/causalfoundry/utils/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,9 +18,9 @@ func TestSetupLocalStorage(t *testing.T) {
 	dbName := util.RandomAlphabets(10, true)
 	path, err := os.Getwd()
 	util.Panic(err)
-	docker.SetupLocalStorage(dbName, "postgres", url("postgres"), path+"/migrations/postgres")
+	util.SetupLocalStorage(dbName, "postgres", url("postgres"), path+"/migrations/postgres")
 
-	db := dbutil.NewDB(dbName, url(dbName), dbutil.DBConfig{})
+	db := util.NewDB(dbName, url(dbName), util.DBConfig{})
 	r, err := db.Exec("INSERT INTO test (id, v) VALUES (1,1)")
 	assert.Nil(t, err)
 	affect, err := r.RowsAffected()
