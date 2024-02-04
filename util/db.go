@@ -44,6 +44,16 @@ func (d *DBConfig) SetDefault() {
 	}
 }
 
+// base db name and access is hardcoded, and it's linked with Storage-Up in Makefile
+func NewTestDB(migrationPath string) *sqlx.DB {
+	dbName := RandomAlphabets(10, true)
+	baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
+	dbUrl := strings.ReplaceAll(baseUrl, "postgres", dbName)
+	SetupLocalStorage(dbName, "postgres", baseUrl, migrationPath)
+
+	return NewDB(dbName, dbUrl, DBConfig{})
+}
+
 func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 	db, err := sqlx.Open("pgx", url)
 	if err != nil {
@@ -74,6 +84,7 @@ func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 	return db
 }
 
+// skip migration if migration file path is empty
 func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 	db, err := sql.Open("pgx", baseUrl)
 	if err != nil {
@@ -99,17 +110,19 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
 		}
 
-		driver, _ := postgres.WithInstance(db, &postgres.Config{})
-		migrateInstance, err := migrate.NewWithDatabaseInstance(
-			"file://"+migrationFile,
-			newDB,
-			driver,
-		)
-		Panic(err)
-
-		err = migrateInstance.Up()
-		if err != nil {
+		if migrationFile != "" {
+			driver, _ := postgres.WithInstance(db, &postgres.Config{})
+			migrateInstance, err := migrate.NewWithDatabaseInstance(
+				"file://"+migrationFile,
+				newDB,
+				driver,
+			)
 			Panic(err)
+
+			err = migrateInstance.Up()
+			if err != nil {
+				Panic(err)
+			}
 		}
 	}
 }
