@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -460,4 +461,19 @@ func LastDayOfTheMonth(date time.Time) time.Time {
 func LastDayOfTheWeek(date time.Time) time.Time {
 	date = Truncate(date, LevelWeek)
 	return date.AddDate(0, 0, 6)
+}
+
+var log = NewLogger("util.latency")
+
+func Latency(marker time.Time, kvs map[string]any) {
+	pc, _, _, _ := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	l := log.Info().Dur("dur", time.Since(marker)).
+		Str("caller", details.Name())
+
+	for k, v := range kvs {
+		l.Interface(k, v)
+	}
+
+	l.Msg("##")
 }
