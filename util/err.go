@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	ErrNotBytes                        = errors.New("error not bytes")
-	ErrCannotDeleteModelWithInvPurpose = errors.New("cannot delete model with inv purpose")
+	ErrNotBytes = errors.New("error not bytes")
 )
 
 type Err struct {
@@ -59,4 +58,13 @@ func ErrUnauthorized(msg string) error {
 
 func ErrForbidden(msg string) error {
 	return NewErr(http.StatusForbidden, msg, nil)
+}
+
+func Errs(err ...error) error {
+	for _, e := range err {
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }
