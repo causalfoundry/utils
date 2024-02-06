@@ -12,15 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-playground/validator"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 )
 
 type StrMap map[string]string
-
-type CustomValidator struct {
-	Validator *validator.Validate
-}
 
 var CustomErrHandler = func(e *echo.Echo) func(err error, c echo.Context) {
 	return func(err error, c echo.Context) {
