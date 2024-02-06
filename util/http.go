@@ -22,6 +22,22 @@ type CustomValidator struct {
 	Validator *validator.Validate
 }
 
+var CustomErrHandler = func(e *echo.Echo) func(err error, c echo.Context) {
+	return func(err error, c echo.Context) {
+		// Check if the error is your custom error type
+		if e, ok := err.(Err); ok {
+			// Write to context or modify response based on custom error
+			e1 := c.JSON(e.Code, map[string]any{"message": e.Msg, "data": e.Data})
+			if err != nil {
+				_ = c.JSON(http.StatusInternalServerError, "error marshal error json: "+e1.Error())
+			}
+		}
+
+		// Handle other errors or default to Echo's internal error handling
+		e.DefaultHTTPErrorHandler(err, c)
+	}
+}
+
 var Validator = validator.New()
 
 func Bind(ctx echo.Context, a any) error {

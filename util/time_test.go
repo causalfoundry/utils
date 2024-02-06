@@ -87,3 +87,60 @@ func TestMisc(t *testing.T) {
 	ret := EndOfWeekOrYesterday(ts)
 	assert.True(t, ret.Equal(DateUTC(2024, 1, 15).Add(time.Nanosecond*-1)))
 }
+
+func TestTimeLocation(t *testing.T) {
+	// Parse the RFC 3339 time string.
+	timeStr := "2020-01-01T00:00:00+08:00"
+	tt, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		fmt.Println("Error parsing time:", err)
+		return
+	}
+
+	// Get the Location of the parsed time.
+	loc := tt.Location()
+
+	// Print the Location's string representation.
+	fmt.Println("--", loc.String())
+	name, offset := tt.Zone()
+	fmt.Println(name, offset)
+}
+
+func TestToTZ(t *testing.T) {
+	ts0 := "2020-01-03T04:00:03Z"
+	ts1 := "2020-01-03T04:00:03+00:00"
+	ts2 := "2020-01-03T04:00:03+05:00"
+	tz, err := ToTZ(ts0)
+	assert.Nil(t, err)
+	assert.Equal(t, tz, TZ("+00:00"))
+
+	tz, err = ToTZ(ts1)
+	assert.Nil(t, err)
+	assert.Equal(t, tz, TZ("+00:00"))
+
+	tz, err = ToTZ(ts2)
+	assert.Nil(t, err)
+	assert.Equal(t, tz, TZ("+05:00"))
+}
+
+func TestYesterdayTZ(t *testing.T) {
+	tt := YesterdayByTZ("+08:00")
+	fmt.Println(tt)
+	fmt.Println(tt.Format(time.RFC3339))
+	fmt.Println(tt.UTC())
+
+	tt = YesterdayByTZ("+00:00")
+	fmt.Println(tt)
+	fmt.Println(tt.Format(time.RFC3339))
+	fmt.Println(tt.UTC())
+}
+
+func TestDatesFromToDay(t *testing.T) {
+	dates := DatesFromToday(-3, -1, "+00:00")
+	assert.Len(t, dates, 3)
+}
+
+func TestMonthesFromToday(t *testing.T) {
+	dates := MonthsFromToday(-3, -1)
+	assert.Len(t, dates, 3)
+}

@@ -63,3 +63,28 @@ func TestUniqueOf(t *testing.T) {
 	})
 	assert.Equal(t, ret, []int{1, 2})
 }
+
+func TestContains(t *testing.T) {
+	assert.False(t, ContainsAll([]string{}, []string{"a", "b"}))
+}
+
+func TestSliceEqual(t *testing.T) {
+	assert.True(t, SliceEqual([]int{1, 2, 3}, []int{1, 2, 3}))
+}
+
+func TestIndexOf(t *testing.T) {
+	idxs, valid := IndexesOf([]string{"a", "b"}, []string{"c", "b", "a"})
+	assert.True(t, valid)
+	assert.Equal(t, idxs, []int{2, 1})
+
+	_, valid = IndexesOf([]string{"a", "d"}, []string{"a", "b"})
+	assert.False(t, valid)
+}
+
+func TestIndexesExcept(t *testing.T) {
+	ret := IndexesExcept([]string{"a", "b"}, []string{"a", "b", "c", "d"})
+	assert.Equal(t, ret, []int{2, 3})
+
+	ret = IndexesExcept([]string{"b", "c"}, []string{"a", "b", "c", "d"})
+	assert.Equal(t, ret, []int{0, 3})
+}
