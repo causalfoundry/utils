@@ -144,3 +144,31 @@ func TestMonthesFromToday(t *testing.T) {
 	dates := MonthsFromToday(-3, -1)
 	assert.Len(t, dates, 3)
 }
+
+func TestTsPoints(t *testing.T) {
+	ts := TsPoints{
+		{
+			T: DateUTC(2020, 3, 1),
+		},
+		{
+			T: DateUTC(2020, 2, 1),
+		},
+		{
+			T: DateUTC(2020, 4, 1),
+		},
+	}
+	expected := TsPoints{
+		{
+			T: DateUTC(2020, 2, 1),
+		},
+		{
+			T: DateUTC(2020, 3, 1),
+		},
+		{
+			T: DateUTC(2020, 4, 1),
+		},
+	}
+	ts.Sort()
+
+	assert.Equal(t, ts, expected)
+}
