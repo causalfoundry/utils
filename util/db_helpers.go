@@ -30,7 +30,7 @@ func UpsertMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, pks 
 	helper := NewInsertHelper(table, cols, merge, con)
 
 	for _, t := range toInsert {
-		_, vals := ExtractTags(t, "json")
+		_, vals := ExtractTags(t, tag)
 		if err = helper.Add(vals); err != nil {
 			log.Err(err).Msg("error save")
 			return
