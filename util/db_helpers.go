@@ -11,10 +11,17 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func UpsertManyNoPartition[T any](log zerolog.Logger, con sq.BaseRunner, table string, pks []string, tag string, toInsert []T, mergeStrategy map[string]string) (err error) {
+func UpsertMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, pks []string, tag string, toInsert []T, mergeStrategy map[string]string, partitionFunc PartitionFunc) (err error) {
 	if len(toInsert) == 0 {
 		return
 	}
+
+	if partitionFunc != nil {
+		if err = partitionFunc(con, table); err != nil {
+			return
+		}
+	}
+
 	cols, _ := ExtractTags(toInsert[0], tag)
 	merge := fmt.Sprintf("ON CONFLICT (%s) DO UPDATE SET %s",
 		strings.Join(pks, ","),
