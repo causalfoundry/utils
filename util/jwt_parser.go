@@ -20,6 +20,8 @@ type UserPayload struct {
 	LastName  string
 }
 
+type ExceptFn func(token string) *UserPayload
+
 type JwtParser interface {
 	TokenToPayload(token string) (payload UserPayload, err error)
 }
@@ -28,12 +30,12 @@ type JwtParser interface {
 type GoogleJwtParser struct {
 	log      zerolog.Logger
 	ClientID string
-	exceptFn func() (bool, UserPayload)
+	exceptFn ExceptFn
 }
 
 var _ JwtParser = GoogleJwtParser{}
 
-func NewGoogleJwtParser(clientID string, exceptFn func() (bool, UserPayload)) GoogleJwtParser {
+func NewGoogleJwtParser(clientID string, exceptFn ExceptFn) GoogleJwtParser {
 	return GoogleJwtParser{
 		log:      NewLogger("auth.google-jwt-parser"),
 		ClientID: clientID,
@@ -44,9 +46,8 @@ func NewGoogleJwtParser(clientID string, exceptFn func() (bool, UserPayload)) Go
 // TokenToUsername implements JwtParser
 func (g GoogleJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
 	if g.exceptFn != nil {
-		var ok bool
-		ok, ret = g.exceptFn()
-		if ok {
+		if payload := g.exceptFn(token); payload != nil {
+			ret = *payload
 			return
 		}
 	}
@@ -71,12 +72,12 @@ func (g GoogleJwtParser) TokenToPayload(token string) (ret UserPayload, err erro
 type FirebaseJwtParser struct {
 	log        zerolog.Logger
 	authClient *auth.Client
-	exceptFn   func() (bool, UserPayload)
+	exceptFn   ExceptFn
 }
 
 var _ JwtParser = FirebaseJwtParser{}
 
-func NewFirebaseJwtParser(jsonCredential string, exceptionFunc func() (bool, UserPayload)) FirebaseJwtParser {
+func NewFirebaseJwtParser(jsonCredential string, exceptFn ExceptFn) FirebaseJwtParser {
 	op := option.WithCredentialsJSON([]byte(jsonCredential))
 	firebaseApp, err := firebase.NewApp(context.Background(), nil, op)
 	Panic(err)
@@ -87,16 +88,15 @@ func NewFirebaseJwtParser(jsonCredential string, exceptionFunc func() (bool, Use
 	return FirebaseJwtParser{
 		log:        NewLogger("auth.firebase-jwt-parser"),
 		authClient: client,
-		exceptFn:   exceptionFunc,
+		exceptFn:   exceptFn,
 	}
 }
 
 // TokenToUsername implements JwtParser
 func (g FirebaseJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
 	if g.exceptFn != nil {
-		var ok bool
-		ok, ret = g.exceptFn()
-		if ok {
+		if payload := g.exceptFn(token); payload != nil {
+			ret = *payload
 			return
 		}
 	}
