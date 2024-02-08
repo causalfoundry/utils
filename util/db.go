@@ -170,28 +170,6 @@ func INx[T any](name string, ins []T) string {
 	return fmt.Sprintf("%s IN (%s)", name, strings.Join(str, ","))
 }
 
-func Partition[T int | string](partitionTableName string, fullTableName string, partitionValue T) (res string) {
-	var valueStr string
-
-	// can perform a type assertion only on interface values
-	// https://stackoverflow.com/questions/71587996/cannot-use-type-assertion-on-type-parameter-value
-	switch v := any(partitionValue).(type) {
-	case int:
-		valueStr = fmt.Sprintf("%d", v)
-	case string:
-		valueStr = fmt.Sprintf("'%s'", v)
-	}
-	res = fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS partition.%s
-		PARTITION OF %s
-		FOR VALUES IN (%s)`,
-		partitionTableName,
-		fullTableName,
-		valueStr,
-	)
-	return
-}
-
 func MultipleJsonbSet(fieldName string, setMap map[string]any) (ret string) {
 	build := func(field, k string, v any) string {
 		switch vv := v.(type) {
@@ -459,9 +437,7 @@ func EitherRunner(tx *sqlx.Tx, db *sqlx.DB) squirrel.BaseRunner {
 
 func toSqlStr[T uint | int | string](v T) (res string) {
 	switch v := any(v).(type) {
-	case uint:
-		res = fmt.Sprintf("%d", v)
-	case int:
+	case uint, int:
 		res = fmt.Sprintf("%d", v)
 	case string:
 		res = fmt.Sprintf("'%s'", v)
@@ -473,25 +449,25 @@ func toSqlStr[T uint | int | string](v T) (res string) {
 // - range
 // - list
 // - hash
-func CreateRangePartition[T uint | int | string](partitionTableName string, fullTableName string, from, to T) string {
+func CreateRangePartition[T uint | int | string](partitionName string, parentName string, from, to T) string {
 	return fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS partition.%s
+		CREATE TABLE IF NOT EXISTS %s
 		PARTITION OF %s
 		FOR VALUES FROM (%s) TO (%s)`,
-		partitionTableName,
-		fullTableName,
+		partitionName,
+		parentName,
 		toSqlStr(from),
 		toSqlStr(to),
 	)
 }
 
-func CreateListPartition[T uint | int | string](partitionTableName string, fullTableName string, val T) string {
+func CreateListPartition[T uint | int | string](partitionName string, parentName string, val T) string {
 	return fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS partition.%s
+		CREATE TABLE IF NOT EXISTS %s
 		PARTITION OF %s
 		FOR VALUES IN (%s)`,
-		partitionTableName,
-		fullTableName,
+		partitionName,
+		parentName,
 		toSqlStr(val),
 	)
 }
