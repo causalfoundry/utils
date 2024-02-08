@@ -21,29 +21,34 @@ type UserPayload struct {
 }
 
 type JwtParser interface {
-	TokenToPayload(token string, exceptionFunc func() (bool, UserPayload)) (payload UserPayload, err error)
+	TokenToPayload(token string) (payload UserPayload, err error)
 }
 
 // ---------------- google -------------------
 type GoogleJwtParser struct {
 	log      zerolog.Logger
 	ClientID string
+	exceptFn func() (bool, UserPayload)
 }
 
 var _ JwtParser = GoogleJwtParser{}
 
-func NewGoogleJwtParser(clientID string) GoogleJwtParser {
+func NewGoogleJwtParser(clientID string, exceptFn func() (bool, UserPayload)) GoogleJwtParser {
 	return GoogleJwtParser{
 		log:      NewLogger("auth.google-jwt-parser"),
 		ClientID: clientID,
+		exceptFn: exceptFn,
 	}
 }
 
 // TokenToUsername implements JwtParser
-func (g GoogleJwtParser) TokenToPayload(token string, exceptionFunc func() (bool, UserPayload)) (ret UserPayload, err error) {
-	ok, ret := exceptionFunc()
-	if ok {
-		return
+func (g GoogleJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
+	if g.exceptFn != nil {
+		var ok bool
+		ok, ret = g.exceptFn()
+		if ok {
+			return
+		}
 	}
 
 	payload, err := idtoken.Validate(context.Background(), token, g.ClientID)
@@ -66,11 +71,12 @@ func (g GoogleJwtParser) TokenToPayload(token string, exceptionFunc func() (bool
 type FirebaseJwtParser struct {
 	log        zerolog.Logger
 	authClient *auth.Client
+	exceptFn   func() (bool, UserPayload)
 }
 
 var _ JwtParser = FirebaseJwtParser{}
 
-func NewFirebaseJwtParser(jsonCredential string) FirebaseJwtParser {
+func NewFirebaseJwtParser(jsonCredential string, exceptionFunc func() (bool, UserPayload)) FirebaseJwtParser {
 	op := option.WithCredentialsJSON([]byte(jsonCredential))
 	firebaseApp, err := firebase.NewApp(context.Background(), nil, op)
 	Panic(err)
@@ -81,14 +87,18 @@ func NewFirebaseJwtParser(jsonCredential string) FirebaseJwtParser {
 	return FirebaseJwtParser{
 		log:        NewLogger("auth.firebase-jwt-parser"),
 		authClient: client,
+		exceptFn:   exceptionFunc,
 	}
 }
 
 // TokenToUsername implements JwtParser
-func (g FirebaseJwtParser) TokenToPayload(token string, exceptFunc func() (bool, UserPayload)) (ret UserPayload, err error) {
-	ok, ret := exceptFunc()
-	if ok {
-		return
+func (g FirebaseJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
+	if g.exceptFn != nil {
+		var ok bool
+		ok, ret = g.exceptFn()
+		if ok {
+			return
+		}
 	}
 
 	verifiedToken, err := g.authClient.VerifyIDToken(context.Background(), token)
