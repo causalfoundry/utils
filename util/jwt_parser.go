@@ -2,12 +2,11 @@ package util
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"fmt"
 	"google.golang.org/api/option"
+	"net/http"
 
 	"github.com/rs/zerolog"
 	"google.golang.org/api/idtoken"
@@ -22,6 +21,7 @@ type UserPayload struct {
 
 type ExceptFn func(token string) *UserPayload
 
+//go:generate mockgen -destination=mock_jwtparser.go -package util . JwtParser
 type JwtParser interface {
 	TokenToPayload(token string) (payload UserPayload, err error)
 }
