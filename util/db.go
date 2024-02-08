@@ -456,3 +456,42 @@ func EitherRunner(tx *sqlx.Tx, db *sqlx.DB) squirrel.BaseRunner {
 	}
 	return db
 }
+
+func toSqlStr[T uint | int | string](v T) (res string) {
+	switch v := any(v).(type) {
+	case uint:
+		res = fmt.Sprintf("%d", v)
+	case int:
+		res = fmt.Sprintf("%d", v)
+	case string:
+		res = fmt.Sprintf("'%s'", v)
+	}
+	return
+}
+
+// there are three types of partition in postgres
+// - range
+// - list
+// - hash
+func CreateRangePartition[T uint | int | string](partitionTableName string, fullTableName string, from, to T) string {
+	return fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS partition.%s
+		PARTITION OF %s
+		FOR VALUES FROM (%s) TO (%s)`,
+		partitionTableName,
+		fullTableName,
+		toSqlStr(from),
+		toSqlStr(to),
+	)
+}
+
+func CreateListPartition[T uint | int | string](partitionTableName string, fullTableName string, val T) string {
+	return fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS partition.%s
+		PARTITION OF %s
+		FOR VALUES IN (%s)`,
+		partitionTableName,
+		fullTableName,
+		toSqlStr(val),
+	)
+}
