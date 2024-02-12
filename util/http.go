@@ -23,10 +23,11 @@ var CustomErrHandler = func(e *echo.Echo) func(err error, c echo.Context) {
 		// Check if the error is your custom error type
 		if e, ok := err.(Err); ok {
 			// Write to context or modify response based on custom error
-			e1 := c.JSON(e.Code, map[string]any{"message": e.Msg, "data": e.Data})
-			if err != nil {
+			e1 := c.JSON(e.Code, map[string]any{"message": e.Msg, "data": fmt.Sprintf("%+v", e.Data)})
+			if e1 != nil {
 				_ = c.JSON(http.StatusInternalServerError, "error marshal error json: "+e1.Error())
 			}
+			return
 		}
 
 		// Handle other errors or default to Echo's internal error handling
