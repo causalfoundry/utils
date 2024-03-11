@@ -22,7 +22,7 @@ func UpsertMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, pks 
 		}
 	}
 
-	cols, _ := ExtractTags(toInsert[0], tag)
+	cols, _ := ExtractTags(toInsert[0], tag, []string{})
 	merge := fmt.Sprintf("ON CONFLICT (%s) DO UPDATE SET %s",
 		strings.Join(pks, ","),
 		UpdateClause(cols, pks, mergeStrategy))
@@ -30,7 +30,7 @@ func UpsertMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, pks 
 	helper := NewInsertHelper(table, cols, merge, con)
 
 	for _, t := range toInsert {
-		_, vals := ExtractTags(t, tag)
+		_, vals := ExtractTags(t, tag, []string{})
 		if err = helper.Add(vals); err != nil {
 			log.Err(err).Msg("error save")
 			return
@@ -57,7 +57,7 @@ func UpdateS(log zerolog.Logger, con sq.BaseRunner, table string, where []string
 func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, wheres, order []string) (ret []T, total int, err error) {
 	order = append(order, "1")
 
-	col, _ := ExtractTags(*new(T), "db")
+	col, _ := ExtractTags(*new(T), "db", []string{})
 
 	query, args, _ := Psql.Select(col...).
 		From(table).
@@ -247,7 +247,7 @@ func SetActive(log zerolog.Logger, con *sqlx.DB, table string, id int, active bo
 
 type PartitionFunc func(runner sq.BaseRunner, table string) error
 
-func CreateMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs []T, returning []string, partitionFunc PartitionFunc) (ids []int, err error) {
+func CreateManySkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs []T, returning, skipping []string, partitionFunc PartitionFunc) (ids []int, err error) {
 	if len(reqs) == 0 {
 		return
 	}
@@ -257,7 +257,7 @@ func CreateMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs
 		}
 	}
 
-	cols, _ := ExtractDBTags(reqs[0])
+	cols, _ := ExtractDBTagsSkip(reqs[0], skipping)
 
 	base := Psql.Insert(table).Columns(cols...)
 	if len(returning) != 0 {
@@ -285,14 +285,18 @@ func CreateMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs
 	return
 }
 
-func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, returning []string, partitionFunc PartitionFunc) (id int, err error) {
+func CreateMany[T any](log zerolog.Logger, con sq.BaseRunner, table string, reqs []T, returning []string, partitionFunc PartitionFunc) (ids []int, err error) {
+	return CreateManySkip[T](log, con, table, reqs, returning, []string{}, partitionFunc)
+}
+
+func CreateSkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, returning, skipping []string, partitionFunc PartitionFunc) (id int, err error) {
 	if partitionFunc != nil {
 		if err = partitionFunc(con, table); err != nil {
 			return
 		}
 	}
 
-	cols, vals := ExtractDBTags(req)
+	cols, vals := ExtractDBTagsSkip(req, skipping)
 	base := Psql.Insert(table).
 		Columns(cols...).
 		Values(vals...)
@@ -306,6 +310,10 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 		log.Err(err).Interface("req", req).Str("table", table).Msg("error create")
 	}
 	return
+}
+
+func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, returning []string, partitionFunc PartitionFunc) (id int, err error) {
+	return CreateSkip[T](log, con, table, req, returning, []string{}, partitionFunc)
 }
 
 func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any, orderby []string) (ret []T, err error) {

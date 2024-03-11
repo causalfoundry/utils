@@ -6,11 +6,15 @@ import (
 	"strings"
 )
 
-func ExtractDBTags(input any) (tags []string, vals []any) {
-	return ExtractTags(input, "db")
+func ExtractDBTagsSkip(input any, skip []string) (tags []string, vals []any) {
+	return ExtractTags(input, "db", skip)
 }
 
-func ExtractTags(input any, tagName string) (tags []string, vals []any) {
+func ExtractDBTags(input any) (tags []string, vals []any) {
+	return ExtractTags(input, "db", []string{})
+}
+
+func ExtractTags(input any, tagName string, skip []string) (tags []string, vals []any) {
 	val := reflect.ValueOf(input)
 	typ := reflect.TypeOf(input)
 
@@ -27,12 +31,18 @@ func ExtractTags(input any, tagName string) (tags []string, vals []any) {
 		hasNoTag := ty.Tag == ""
 
 		if isStruct && !isSpecialType && hasNoTag {
-			t, v := ExtractTags(va.Interface(), tagName)
+			t, v := ExtractTags(va.Interface(), tagName, skip)
 			tags = append(tags, t...)
 			vals = append(vals, v...)
 		} else {
-			tags = append(tags, ty.Tag.Get(tagName))
-			vals = append(vals, va.Interface())
+			tag := ty.Tag.Get(tagName)
+			val := va.Interface()
+
+			if len(skip) != 0 && Contains(tag, skip) {
+				continue
+			}
+			tags = append(tags, tag)
+			vals = append(vals, val)
 		}
 	}
 
