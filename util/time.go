@@ -27,6 +27,17 @@ const (
 	LevelMonth AggLevel = "month"
 )
 
+func (a AggLevel) ToAggly() (res string) {
+	switch a {
+	case LevelHour, LevelWeek, LevelMonth:
+		return string(a) + "ly"
+	case LevelDay:
+		return "daily"
+	default:
+		return string(a)
+	}
+}
+
 type TsPoint struct {
 	T time.Time `json:"t" db:"t"`
 	V float64   `json:"v" db:"v"`
