@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -91,50 +92,51 @@ func errHandle(ctx echo.Context, err error) error {
 	}
 }
 
-func PostJSONWH[REQ, RESP any](req REQ, url string, extraHeader map[string]string) (ret RESP, err error) {
-	bs, err := json.Marshal(req)
+func Request[RESP any](method, url string, query, header map[string]string, data any, timeout time.Duration) (ret RESP, err error) {
+	var client = &http.Client{
+		Timeout: timeout,
+	}
+	var queryStr []string
+	for k, v := range query {
+		queryStr = append(queryStr, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	b, err := json.Marshal(data)
 	if err != nil {
-		return
+		return ret, err
 	}
-	_req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(bs))
+
+	fullUrl := url
+	if len(query) > 0 {
+		fullUrl += "?" + strings.Join(queryStr, "&")
+	}
+	req, err := http.NewRequest(method, fullUrl, bytes.NewReader(b))
 	if err != nil {
-		return
+		return ret, err
 	}
 
-	// Add header to the request
-	_req.Header.Add("Content-Type", "application/json")
-	for k, v := range extraHeader {
-		_req.Header.Add(k, v)
+	if data != nil {
+		req.Header.Set("content-type", "application/json")
+	}
+	for h, v := range header {
+		req.Header.Set(h, v)
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(_req)
+	resp, err := client.Do(req)
 	if err != nil {
-		err = fmt.Errorf("error post request: %w", err)
-		return
+		return ret, err
 	}
+	defer resp.Body.Close()
 
-	b, e := io.ReadAll(resp.Body)
-	if e != nil {
-		err = fmt.Errorf("error read body: %w, body: %s", e, string(b))
-		return
-	}
-
+	b, err = io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("status code not 200: %s", string(b))
-		return
+		return ret, NewErr(resp.StatusCode, string(b), nil)
 	}
 
-	if len(b) == 0 {
-		return
+	if len(b) > 0 {
+		err = json.Unmarshal(b, &ret)
 	}
-	err = json.Unmarshal(b, &ret)
 	return
-
-}
-
-func PostJSON[REQ, RESP any](req REQ, url string) (ret RESP, err error) {
-	return PostJSONWH[REQ, RESP](req, url, nil)
 }
 
 // ToMid
