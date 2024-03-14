@@ -143,7 +143,7 @@ func doReq[RESP any](client *http.Client, req *http.Request) (ret RESP, err erro
 func RequestCtx[RESP any](method, url string, query, header map[string]string, data any, ctx context.Context) (ret RESP, err error) {
 	var client = http.DefaultClient
 	req, err := buildReq(method, url, query, header, data, ctx)
-	if err == nil {
+	if err != nil {
 		return
 	}
 	ret, err = doReq[RESP](client, req)
@@ -155,7 +155,7 @@ func Request[RESP any](method, url string, query, header map[string]string, data
 		Timeout: timeout,
 	}
 	req, err := buildReq(method, url, query, header, data, nil)
-	if err == nil {
+	if err != nil {
 		return
 	}
 	ret, err = doReq[RESP](client, req)
