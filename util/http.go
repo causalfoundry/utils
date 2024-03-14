@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -92,43 +93,43 @@ func errHandle(ctx echo.Context, err error) error {
 	}
 }
 
-func Request[RESP any](method, url string, query, header map[string]string, data any, timeout time.Duration) (ret RESP, err error) {
-	var client = &http.Client{
-		Timeout: timeout,
-	}
+func buildReq(method, url string, query, header map[string]string, data any, ctx context.Context) (ret *http.Request, err error) {
 	var queryStr []string
 	for k, v := range query {
 		queryStr = append(queryStr, fmt.Sprintf("%s=%s", k, v))
 	}
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		return ret, err
+	if len(queryStr) != 0 {
+		url = url + "?" + strings.Join(queryStr, "&")
 	}
 
-	fullUrl := url
-	if len(query) > 0 {
-		fullUrl += "?" + strings.Join(queryStr, "&")
-	}
-	req, err := http.NewRequest(method, fullUrl, bytes.NewReader(b))
-	if err != nil {
-		return ret, err
+	b, _ := json.Marshal(data)
+	if ctx == nil {
+		ret, err = http.NewRequest(method, url, bytes.NewReader(b))
+	} else {
+		ret, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(b))
 	}
 
 	if data != nil {
-		req.Header.Set("content-type", "application/json")
+		ret.Header.Set("content-type", "application/json")
 	}
 	for h, v := range header {
-		req.Header.Set(h, v)
+		ret.Header.Set(h, v)
 	}
 
+	return
+}
+
+func doReq[RESP any](client *http.Client, req *http.Request) (ret RESP, err error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return ret, err
 	}
 	defer resp.Body.Close()
 
-	b, err = io.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ret, NewErr(http.StatusInternalServerError, "error read body", nil)
+	}
 	if resp.StatusCode != 200 {
 		return ret, NewErr(resp.StatusCode, string(b), nil)
 	}
@@ -137,6 +138,29 @@ func Request[RESP any](method, url string, query, header map[string]string, data
 		err = json.Unmarshal(b, &ret)
 	}
 	return
+}
+
+func RequestCtx[RESP any](method, url string, query, header map[string]string, data any, ctx context.Context) (ret RESP, err error) {
+	var client = http.DefaultClient
+	req, err := buildReq(method, url, query, header, data, ctx)
+	if err == nil {
+		return
+	}
+	ret, err = doReq[RESP](client, req)
+	return
+}
+
+func Request[RESP any](method, url string, query, header map[string]string, data any, timeout time.Duration) (ret RESP, err error) {
+	var client = &http.Client{
+		Timeout: timeout,
+	}
+	req, err := buildReq(method, url, query, header, data, nil)
+	if err == nil {
+		return
+	}
+	ret, err = doReq[RESP](client, req)
+	return
+
 }
 
 // ToMid
