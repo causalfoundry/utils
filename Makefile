@@ -14,7 +14,7 @@ check: storage-up
 	@golangci-lint run ./...
 	@go test ./...
 
-push: check
+release: check
 ifndef TAG
 	$(error TAG is not defined. Usage: make tag-and-push TAG=<tag-name>)
 endif
