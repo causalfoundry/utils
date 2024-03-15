@@ -7,12 +7,13 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 )
 
-func ParseJSONToStruct(src interface{}, dest interface{}) error {
+func ParseJSONToStruct(src, dest any) error {
 	var data []byte
 	if src == nil {
 		return nil
@@ -44,6 +45,8 @@ func ToFloat64(x any) (val float64, err error) {
 		val = float64(v)
 	case float64:
 		val = v
+	case string:
+		return strconv.ParseFloat(v, 64)
 	default:
 		err = fmt.Errorf("error in converting type %T to float64, %v", x, x)
 	}

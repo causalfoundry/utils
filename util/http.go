@@ -60,9 +60,9 @@ func RespNoContent(ctx echo.Context, err error) error {
 	}
 }
 
-func RespCSV(ctx echo.Context, err error, csv string) error {
+func RespCSV(ctx echo.Context, err error, csv, fileName string) error {
 	ctx.Response().Header().Set("Content-Type", "text/csv")
-	ctx.Response().Header().Set("Content-Disposition", "attachment; filename=\"persons.csv\"")
+	ctx.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	switch err {
 	case nil:
@@ -211,10 +211,10 @@ func GetPayloads[T any](ctx echo.Context) (t []T, err error) {
 func GetQuery[T int | string | bool](ctx echo.Context, name string) (t T, err error) {
 	switch any(t).(type) {
 	case int:
-		tt, err := strconv.Atoi(ctx.QueryParam(name))
-		if err != nil {
-			err = ErrBadRequest(err.Error())
-			return t, err
+		tt, e := strconv.Atoi(ctx.QueryParam(name))
+		if e != nil {
+			e = ErrBadRequest(e.Error())
+			return t, e
 		}
 		t = any(tt).(T)
 	case string:
@@ -314,7 +314,7 @@ func GetPayload[T any](ctx echo.Context) (t T, err error) {
 	return
 }
 
-type ReqCtx struct {
+type ReqKit struct {
 	Req  *http.Request
 	Resp *httptest.ResponseRecorder
 	Ctx  echo.Context
@@ -330,7 +330,7 @@ type RequestCfg struct {
 	CtxKVs      Obj
 }
 
-func NewHttpTestKit(engine *echo.Echo, r RequestCfg) ReqCtx {
+func NewHttpTestKit(engine *echo.Echo, r RequestCfg) ReqKit {
 	objBytes, err := json.Marshal(r.Payload)
 	Panic(err)
 
@@ -361,7 +361,7 @@ func NewHttpTestKit(engine *echo.Echo, r RequestCfg) ReqCtx {
 		ctx.Set(k, v)
 	}
 
-	return ReqCtx{
+	return ReqKit{
 		Req:  req,
 		Resp: resp,
 		Ctx:  ctx,
