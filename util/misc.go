@@ -157,3 +157,16 @@ func ToStr[T any](a T) string {
 		return fmt.Sprint(a)
 	}
 }
+
+func DBJsonScan[T any](in any) (ret T, err error) {
+	if in == nil {
+		return
+	}
+	bytes, ok := in.([]byte)
+	if !ok {
+		err = ErrNotBytes
+		return
+	}
+	err = json.Unmarshal(bytes, &ret)
+	return
+}
