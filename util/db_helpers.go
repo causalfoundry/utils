@@ -68,7 +68,7 @@ func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 		ToSql()
 
 	if err = con.Select(&ret, query, args...); err != nil {
-		log.Err(err).Str("table", table).Msg("error select")
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Msg("error select")
 		return
 	}
 
