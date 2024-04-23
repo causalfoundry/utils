@@ -159,9 +159,6 @@ func EQx[T any](name string, v T) string {
 
 func INx[T any](name string, ins []T) string {
 	var str []string
-	if len(ins) == 0 {
-		return "true"
-	}
 	for _, i := range ins {
 		switch any(i).(type) {
 		case int:
