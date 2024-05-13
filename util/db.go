@@ -22,6 +22,32 @@ const PostgresPlaceholderLimit = 65535
 
 var Psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
+type PostgresConfig struct {
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
+	DatabaseName    string `yaml:"database_name"`
+	Host            string `yaml:"host"`
+	DatabaseSSLMode string `yaml:"database_ssl_mode"`
+	Port            int    `yaml:"port"`
+}
+
+func (p PostgresConfig) GetLocalBaseURL() string {
+	return fmt.Sprintf("host=%s port=%d dbname=postgres user=%s password=%s sslmode=%s",
+		p.Host, p.Port, p.Username, p.Password, p.DatabaseSSLMode)
+}
+
+func (p PostgresConfig) GetURL() string {
+	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
+		p.Host, p.Port, p.DatabaseName, p.Username, p.Password, p.DatabaseSSLMode)
+}
+
+type RedisConfig struct {
+	Master   string `yaml:"master"`
+	Slave    string `yaml:"slave"`
+	Password string `yaml:"password"`
+	Port     int    `yaml:"port"`
+}
+
 type DBConfig struct {
 	MaxOpenConn     int
 	MaxIdelConn     int
