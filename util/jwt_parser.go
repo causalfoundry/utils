@@ -14,6 +14,7 @@ import (
 
 type UserPayload struct {
 	Username  string
+	Email     string
 	Name      string
 	FirstName string
 	LastName  string
@@ -108,5 +109,8 @@ func (g FirebaseJwtParser) TokenToPayload(token string) (ret UserPayload, err er
 	}
 
 	ret.Username = verifiedToken.UID
+	if email, ok := verifiedToken.Claims["email"]; ok {
+		ret.Email = fmt.Sprint(email)
+	}
 	return
 }
