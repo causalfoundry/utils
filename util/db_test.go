@@ -88,5 +88,10 @@ func TestPrepareIDPartition(t *testing.T) {
 	_, err = db.Exec("CREATE SCHEMA partition")
 	assert.Nil(t, err)
 	assert.Nil(t, PrepareIDPartition(db, "common.a", "partition", 10))
+	for i := 10; i < 30; i++ {
+		assert.Nil(t, PrepareIDPartition(db, "common.a", "partition", 10))
+		_, err = db.Exec("INSERT INTO common.a (val) VALUES ($1)", i)
+		assert.Nil(t, err)
+	}
 
 }

@@ -516,8 +516,12 @@ func PrepareIDPartition(con squirrel.BaseRunner, table, partitionSchema string, 
 	}
 
 	a := next / uint(modulos)
+
+	currentTable := fmt.Sprintf("%s.%s_%d", partitionSchema, shortTable, a)
+	currentPartitionQuery := CreateRangePartition[uint](currentTable, table, (a)*uint(modulos), (a+1)*uint(modulos))
+
 	partitionTable := fmt.Sprintf("%s.%s_%d", partitionSchema, shortTable, a+1)
 	partitionQuery := CreateRangePartition[uint](partitionTable, table, (a+1)*uint(modulos), (a+2)*uint(modulos))
-	_, err = con.Exec(partitionQuery)
+	_, err = con.Exec(currentPartitionQuery + ";" + partitionQuery)
 	return err
 }
