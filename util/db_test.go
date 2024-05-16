@@ -77,3 +77,16 @@ func TestTimePointsToFiller(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, results, 4)
 }
+
+func TestPrepareIDPartition(t *testing.T) {
+	db := NewTestDB("")
+	_, err := db.Exec("CREATE SCHEMA common")
+	assert.Nil(t, err)
+	_, err = db.Exec("CREATE TABLE common.a (id serial not null, val int) PARTITION BY RANGE (id)")
+	assert.Nil(t, err)
+
+	_, err = db.Exec("CREATE SCHEMA partition")
+	assert.Nil(t, err)
+	assert.Nil(t, PrepareIDPartition(db, "common.a", "partition", 10))
+
+}

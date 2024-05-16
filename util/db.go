@@ -76,7 +76,7 @@ func NewTestDB(migrationPath string) *sqlx.DB {
 	baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
 	dbUrl := strings.ReplaceAll(baseUrl, "postgres", dbName)
 	SetupLocalStorage(dbName, "postgres", baseUrl, migrationPath)
-
+	fmt.Println("---- " + dbName)
 	return NewDB(dbName, dbUrl, DBConfig{})
 }
 
@@ -496,4 +496,28 @@ func CreateListPartition[T uint | int | string](partitionName string, parentName
 		parentName,
 		toSqlStr(val),
 	)
+}
+
+// it assume certain structure of the table and index name
+func PrepareIDPartition(con squirrel.BaseRunner, table, partitionSchema string, modulos int) error {
+	shortTable := strings.Split(table, ".")[1]
+	query := fmt.Sprintf("SELECT last_value FROM %s_id_seq LIMIT 1", table)
+	row, err := con.Query(query)
+	if err != nil {
+		return err
+	}
+
+	var next uint
+	// the for loop should always have 1 iteration
+	for row.Next() {
+		if err = row.Scan(&next); err != nil {
+			return err
+		}
+	}
+
+	a := next / uint(modulos)
+	partitionTable := fmt.Sprintf("%s.%s_%d", partitionSchema, shortTable, a+1)
+	partitionQuery := CreateRangePartition[uint](partitionTable, table, (a+1)*uint(modulos), (a+2)*uint(modulos))
+	_, err = con.Exec(partitionQuery)
+	return err
 }
