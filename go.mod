@@ -1,11 +1,13 @@
 module github.com/causalfoundry/utils
 
-go 1.20
+go 1.22
 
 require (
 	firebase.google.com/go/v4 v4.14.0
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/MicahParks/keyfunc/v3 v3.3.3
 	github.com/go-playground/validator/v10 v10.17.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang/mock v1.6.0
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/jmoiron/sqlx v1.3.5
@@ -24,6 +26,7 @@ require (
 	cloud.google.com/go/iam v1.1.7 // indirect
 	cloud.google.com/go/longrunning v0.5.5 // indirect
 	cloud.google.com/go/storage v1.40.0 // indirect
+	github.com/MicahParks/jwkset v0.5.18 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.5.0 // indirect

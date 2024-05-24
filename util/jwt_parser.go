@@ -2,12 +2,16 @@ package util
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"time"
+
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
-	"fmt"
 	"google.golang.org/api/option"
-	"net/http"
 
+	"github.com/MicahParks/keyfunc/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog"
 	"google.golang.org/api/idtoken"
 )
@@ -25,6 +29,52 @@ type ExceptFn func(token string) *UserPayload
 //go:generate mockgen -destination=mock_jwtparser.go -package util . JwtParser
 type JwtParser interface {
 	TokenToPayload(token string) (payload UserPayload, err error)
+}
+
+// ---------------- ms -------------------
+type MicroSoftJwtParser struct {
+	log      zerolog.Logger
+	exceptFn ExceptFn
+}
+
+var _ JwtParser = MicroSoftJwtParser{}
+
+func NewMicrosfotJwtParser(clientID string, exceptFn ExceptFn) MicroSoftJwtParser {
+	return MicroSoftJwtParser{
+		log:      NewLogger("auth.microsoft-jwt-parser"),
+		exceptFn: exceptFn,
+	}
+}
+
+const MicrosoftJwksUrl = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+
+// TokenToUsername implements JwtParser
+func (g MicroSoftJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
+	if g.exceptFn != nil {
+		if payload := g.exceptFn(token); payload != nil {
+			ret = *payload
+			return
+		}
+	}
+
+	// Get the JSON Web Key Sets (JWKS) from Microsoft
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	funcs, err := keyfunc.NewDefaultCtx(ctx, []string{MicrosoftJwksUrl})
+	if err != nil {
+		return
+	}
+
+	jwtToken, err := jwt.Parse(token, funcs.Keyfunc)
+	if err != nil {
+		return
+	}
+
+	claims := jwtToken.Claims.(jwt.MapClaims)
+	ret.Email = fmt.Sprint(claims["preferred_username"])
+	ret.Name = fmt.Sprint(claims["name"])
+	ret.Username = fmt.Sprint(claims["preferred_username"])
+	return
 }
 
 // ---------------- google -------------------
