@@ -2,9 +2,9 @@ package util
 
 import "net/http"
 
-func ParseToken(token string, parsers ...JwtParser) (ret UserPayload, err error) {
-	for _, parser := range parsers {
-		if ret, err = parser.TokenToPayload(token); err != nil {
+func ParseJwtToken(jwtToken string, jwtParsers ...JwtParser) (ret UserPayload, err error) {
+	for _, parser := range jwtParsers {
+		if ret, err = parser.TokenToPayload(jwtToken); err != nil {
 			continue
 		}
 		return
