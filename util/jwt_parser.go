@@ -39,7 +39,7 @@ type MicroSoftJwtParser struct {
 
 var _ JwtParser = MicroSoftJwtParser{}
 
-func NewMicrosfotJwtParser(clientID string, exceptFn ExceptFn) MicroSoftJwtParser {
+func NewMicrosfotJwtParser(exceptFn ExceptFn) MicroSoftJwtParser {
 	return MicroSoftJwtParser{
 		log:      NewLogger("auth.microsoft-jwt-parser"),
 		exceptFn: exceptFn,
