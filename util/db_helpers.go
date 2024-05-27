@@ -78,7 +78,7 @@ func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 		log.Err(err).Str("table", table).Msg("error count total")
 	}
 	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Strs("where", wheres).Msg("empty list")
+		log.Warn().Str("table", table).Interface("where", wheres).Str("query", query).Interface("args", args).Msg("empty list")
 	}
 	return
 }
@@ -164,7 +164,7 @@ func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, 
 	}
 
 	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Strs("where", where).Msg("empty list")
+		log.Warn().Str("table", table).Interface("where", where).Str("query", query).Interface("args", args).Msg("empty list")
 	}
 	return
 }
@@ -198,7 +198,7 @@ func ListM[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 	}
 
 	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Interface("where", where).Msg("empty list")
+		log.Warn().Str("table", table).Interface("where", where).Str("query", query).Interface("args", args).Msg("empty list")
 	}
 	return
 }
