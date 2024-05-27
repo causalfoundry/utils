@@ -69,12 +69,12 @@ func (p Page) GoSliceStartEnd(slen int) (int, int) {
 func GetPagination(ctx echo.Context) (ret Page, err error) {
 	page, err := strconv.Atoi(ctx.QueryParam("page"))
 	if err != nil {
-		err = ErrBadRequest(err.Error())
+		err = ErrBadRequest("failed to get page: " + err.Error())
 		return
 	}
 	perPage, err := strconv.Atoi(ctx.QueryParam("per_page"))
 	if err != nil {
-		err = ErrBadRequest(err.Error())
+		err = ErrBadRequest("failed to get per_page: " + err.Error())
 		return
 	}
 
