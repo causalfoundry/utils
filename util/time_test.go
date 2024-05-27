@@ -57,7 +57,9 @@ func TestTimesOfTsRange(t *testing.T) {
 	}
 	tss, err := ts.TimesBeforeTodayDesc()
 	assert.Nil(t, err)
-	fmt.Println(tss)
+	for i := 1; i < len(tss); i++ {
+		assert.True(t, tss[i].Before(tss[i-1]))
+	}
 
 	t.Run("weekly", func(t *testing.T) {
 		ts := TsRange{

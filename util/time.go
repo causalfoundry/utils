@@ -264,7 +264,7 @@ func (t TsRange) TimesBeforeTodayDesc() (ret []time.Time, err error) {
 		}
 		ret = append(ret, ts[i])
 	}
-	sort.Slice(ts, func(i, j int) bool { return ts[i].After(ts[j]) })
+	sort.Slice(ret, func(i, j int) bool { return ret[i].After(ret[j]) })
 	return
 }
 
