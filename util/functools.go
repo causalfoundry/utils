@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"reflect"
 	"time"
+
+	"github.com/spf13/cast"
 )
 
 func Dedup[T any](arr []T) (ret []T) {
@@ -518,4 +520,56 @@ func FindOne[T any](arr []T, fn func(T) bool) (ret T) {
 
 func Random[T any](arr []T) T {
 	return arr[rand.Intn(len(arr))]
+}
+
+func ArrTo[T any](in []any) (ret []T, err error) {
+	return MapE(in, func(i any) (T, error) { return To[T](i) })
+}
+
+func To[T any](in any) (ret T, err error) {
+	dummy := any(new(T))
+	switch dummy.(type) {
+	case *int:
+		a, err := cast.ToIntE(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	case *float32:
+		a, err := cast.ToFloat32E(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	case *float64:
+		a, err := cast.ToFloat64E(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	case *bool:
+		a, err := cast.ToBoolE(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	case *string:
+		a, err := cast.ToStringE(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	case *time.Time:
+		a, err := cast.ToTimeE(in)
+		if err != nil {
+			return ret, err
+		}
+		ret = any(a).(T)
+	default:
+		a, ok := in.(T)
+		if !ok {
+			err = fmt.Errorf("failed to cast %T to %T", a, dummy)
+		}
+	}
+	return
 }
