@@ -368,7 +368,7 @@ func NewHttpTestKit(engine *echo.Echo, r RequestCfg) ReqKit {
 	}
 }
 
-func MarshalResp[T any](resp *http.Response) (ret T, err error) {
+func UnmarshalResp[T any](resp *http.Response) (ret T, err error) {
 	defer resp.Body.Close()
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
