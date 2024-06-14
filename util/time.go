@@ -222,6 +222,7 @@ func PartitionTruncate(t time.Time, timeLevel AggLevel) time.Time {
 type TsRange struct {
 	Start    time.Time
 	End      time.Time
+	Order    string // asc & desc or empty
 	AggLevel AggLevel
 }
 
@@ -281,6 +282,12 @@ func (t TsRange) Times() (ret []time.Time, err error) {
 		if err != nil {
 			return
 		}
+	}
+	switch t.Order {
+	case "asc":
+		sort.Slice(ret, func(i, j int) bool { return ret[i].Before(ret[j]) })
+	case "desc":
+		sort.Slice(ret, func(i, j int) bool { return ret[i].After(ret[j]) })
 	}
 	return
 }

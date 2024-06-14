@@ -20,6 +20,16 @@ func TestRange(t *testing.T) {
 	ForEach(ts, func(t time.Time) {
 		fmt.Println(t)
 	})
+
+	rg.Order = "asc"
+	ts, err = rg.Times()
+	assert.Nil(t, err)
+	assert.True(t, ts[0].Before(ts[1]))
+
+	rg.Order = "desc"
+	ts, err = rg.Times()
+	assert.Nil(t, err)
+	assert.False(t, ts[0].Before(ts[1]))
 }
 
 func TestTruncate(t *testing.T) {
