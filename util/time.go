@@ -192,6 +192,15 @@ func RandomMomentInADay(t time.Time) time.Time {
 	return time.Date(y, m, d, rand.Intn(23), rand.Intn(59), rand.Intn(59), rand.Intn(10000), t.Location())
 }
 
+func adjustedWeekday(t time.Time) int {
+	w := t.Weekday()
+	if w == 0 {
+		return 7
+	}
+
+	return int(w)
+}
+
 func Truncate(t time.Time, timeLevel AggLevel) time.Time {
 	y, m, d := t.Date()
 	switch timeLevel {
@@ -200,7 +209,7 @@ func Truncate(t time.Time, timeLevel AggLevel) time.Time {
 	case LevelDay:
 		return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 	case LevelWeek:
-		diff := t.Weekday() - time.Monday
+		diff := adjustedWeekday(t) - 1
 		return time.Date(y, m, d, 0, 0, 0, 0, t.Location()).AddDate(0, 0, -int(diff))
 	case LevelMonth:
 		return time.Date(y, m, 1, 0, 0, 0, 0, t.Location())

@@ -35,8 +35,13 @@ func TestRange(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	ti, err := time.Parse(time.RFC3339, "2020-01-01T04:20:20+08:00")
 	assert.Nil(t, err)
-	newTi := Truncate(ti, AggLevel(LevelHour))
+	newTi := Truncate(ti, LevelHour)
 	assert.Equal(t, newTi.Format(time.RFC3339), "2020-01-01T04:00:00+08:00")
+
+	for i := 0; i < 20; i++ {
+		ti = Truncate(ti.AddDate(0, 0, i), LevelWeek)
+		assert.Equal(t, ti.Weekday(), time.Monday)
+	}
 }
 
 func TestRandInDayStr(t *testing.T) {
