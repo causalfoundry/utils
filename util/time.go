@@ -165,8 +165,18 @@ func EndOfMonthOrYesterday(a time.Time) time.Time {
 }
 
 // end of month
+func EndOfMonthOrToday(a time.Time) time.Time {
+	return MinTime(EndOfMonth(a), DateFromTodayUTC(0))
+}
+
+// end of month
 func EndOfWeekOrYesterday(a time.Time) time.Time {
 	return MinTime(EndOfWeek(a), DateFromTodayUTC(-1))
+}
+
+// end of month
+func EndOfWeekOrToday(a time.Time) time.Time {
+	return MinTime(EndOfWeek(a), DateFromTodayUTC(0))
 }
 
 func EndOfWeek(a time.Time) time.Time {
