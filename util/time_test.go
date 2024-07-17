@@ -13,9 +13,10 @@ func TestRange(t *testing.T) {
 	rg := TsRange{
 		Start:    yd.AddDate(0, 0, -2),
 		End:      yd,
+		Order:    "desc",
 		AggLevel: "day",
 	}
-	ts, err := rg.TimesBeforeTodayDesc()
+	ts, err := rg.TimesBeforeToday()
 	assert.Nil(t, err)
 	ForEach(ts, func(t time.Time) {
 		fmt.Println(t)
@@ -68,9 +69,10 @@ func TestTimesOfTsRange(t *testing.T) {
 	ts = TsRange{
 		Start:    time.Now().AddDate(0, 0, -4),
 		End:      time.Now().AddDate(0, 0, 3),
+		Order:    "desc",
 		AggLevel: LevelDay,
 	}
-	tss, err := ts.TimesBeforeTodayDesc()
+	tss, err := ts.TimesBeforeToday()
 	assert.Nil(t, err)
 	for i := 1; i < len(tss); i++ {
 		assert.True(t, tss[i].Before(tss[i-1]))
