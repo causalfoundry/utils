@@ -271,7 +271,7 @@ func TimeIncr(t time.Time, aggLevel AggLevel) (time.Time, error) {
 	}
 }
 
-func (t TsRange) TimesBeforeTodayDesc() (ret []time.Time, err error) {
+func (t TsRange) TimesBeforeToday() (ret []time.Time, err error) {
 	ts, err := t.Times()
 	if err != nil {
 		return
@@ -284,7 +284,6 @@ func (t TsRange) TimesBeforeTodayDesc() (ret []time.Time, err error) {
 		}
 		ret = append(ret, ts[i])
 	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].After(ret[j]) })
 	return
 }
 
@@ -303,10 +302,12 @@ func (t TsRange) Times() (ret []time.Time, err error) {
 		}
 	}
 	switch t.Order {
-	case "asc":
+	case "asc", "": // default order is asc
 		sort.Slice(ret, func(i, j int) bool { return ret[i].Before(ret[j]) })
 	case "desc":
 		sort.Slice(ret, func(i, j int) bool { return ret[i].After(ret[j]) })
+	default:
+		err = fmt.Errorf("error unknown order value %s", t.Order)
 	}
 	return
 }
