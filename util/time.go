@@ -302,7 +302,7 @@ func (t TsRange) Times() (ret []time.Time, err error) {
 		}
 	}
 	switch t.Order {
-	case "asc", "": // default order is asc
+	case "asc": // default order is asc
 		sort.Slice(ret, func(i, j int) bool { return ret[i].Before(ret[j]) })
 	case "desc":
 		sort.Slice(ret, func(i, j int) bool { return ret[i].After(ret[j]) })

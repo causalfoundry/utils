@@ -55,6 +55,7 @@ func TestTimesOfTsRange(t *testing.T) {
 		Start:    DateUTC(2020, 1, 4),
 		End:      DateUTC(2020, 2, 3),
 		AggLevel: LevelMonth,
+		Order:    "asc",
 	}
 
 	tis, err := ts.Times()
@@ -83,6 +84,7 @@ func TestTimesOfTsRange(t *testing.T) {
 			Start:    DateUTC(2024, 1, 15),
 			End:      DateUTC(2024, 1, 22), // the following monday
 			AggLevel: LevelWeek,
+			Order:    "asc",
 		}
 
 		times, err := ts.Times()
@@ -93,6 +95,7 @@ func TestTimesOfTsRange(t *testing.T) {
 			Start:    DateUTC(2024, 1, 15),
 			End:      DateUTC(2024, 1, 17), // the following monday
 			AggLevel: LevelWeek,
+			Order:    "asc",
 		}
 
 		times, err = ts.Times()
