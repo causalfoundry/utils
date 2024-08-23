@@ -55,6 +55,7 @@ func UpdateS(log zerolog.Logger, con sq.BaseRunner, table string, where []string
 }
 
 func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, wheres, order []string) (ret []T, total int, err error) {
+	ret = []T{}
 	order = append(order, "1")
 
 	col, _ := ExtractTags(*new(T), "db", []string{})
@@ -96,6 +97,7 @@ func GetS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string)
 }
 
 func GetManyS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string, orderby []string) (ret []T, err error) {
+	ret = []T{}
 	query, args, _ := Psql.Select("*").From(table).
 		Where(AndWhere(where)).
 		OrderBy(strings.Join(orderby, ",")).
@@ -128,6 +130,7 @@ func Delete(log zerolog.Logger, con sq.BaseRunner, table string, where []string)
 }
 
 func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, selects, where, orderby []string) (ret []T, total int, err error) {
+	ret = []T{}
 	var toSelect = "*"
 	where = append(where, "1=1")
 	orderby = append(orderby, "(SELECT NULL)")
@@ -170,7 +173,7 @@ func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, 
 }
 
 func ListM[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, where map[string]any, orderBy []string) (ret []T, total int, err error) {
-	ret = make([]T, 0)
+	ret = []T{}
 
 	base := Psql.Select("*").From(table)
 
@@ -328,6 +331,7 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 }
 
 func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any, orderby []string) (ret []T, err error) {
+	ret = []T{}
 	query, args, _ := Psql.Select("*").From(table).
 		Where(where).
 		OrderBy(strings.Join(orderby, ",")).
