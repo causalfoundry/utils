@@ -400,6 +400,21 @@ func ParseDBArray[T any](repr string) (ret []T, err error) {
 			res = append(res, v)
 		}
 		result = res
+	case bool:
+		var res []bool
+		var v bool
+		for _, token := range tokens {
+			if token == "t" {
+				v = true
+			} else if token == "f" {
+				v = false
+			} else {
+				err = fmt.Errorf("unrecognised token %s in bool array", token)
+				return
+			}
+			res = append(res, v)
+		}
+		result = res
 	case float64, float32:
 		var res []float64
 		var v float64

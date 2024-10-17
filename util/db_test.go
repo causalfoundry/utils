@@ -49,17 +49,22 @@ func TestParseDBArray(t *testing.T) {
 	intArray := "{1,2,3,4}"
 	ret, err := ParseDBArray[int](intArray)
 	assert.Nil(t, err)
-	assert.Equal(t, ret, []int{1, 2, 3, 4})
+	assert.Equal(t, []int{1, 2, 3, 4}, ret)
 
 	floatArray := "{1,2,3,4}"
 	floatArr, err := ParseDBArray[float64](floatArray)
 	assert.Nil(t, err)
-	assert.Equal(t, floatArr, []float64{1, 2, 3, 4})
+	assert.Equal(t, []float64{1, 2, 3, 4}, floatArr)
 
 	timeArray := "{2020-01-01, 2020-01-01T20:00:00Z}"
 	timeArr, err := ParseDBArray[time.Time](timeArray)
 	assert.Nil(t, err)
-	assert.Equal(t, timeArr, []time.Time{DateUTC(2020, 1, 1), time.Date(2020, 1, 1, 20, 0, 0, 0, time.UTC)})
+	assert.Equal(t, []time.Time{DateUTC(2020, 1, 1), time.Date(2020, 1, 1, 20, 0, 0, 0, time.UTC)}, timeArr)
+
+	boolArray := "{t,t,t,f}"
+	boolArr, err := ParseDBArray[bool](boolArray)
+	assert.Nil(t, err)
+	assert.Equal(t, []bool{true, true, true, false}, boolArr)
 }
 
 func TestTimePointsToFiller(t *testing.T) {
