@@ -278,7 +278,7 @@ func CreateManySkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, 
 		base = base.Suffix("RETURNING " + strings.Join(returning, ","))
 	}
 	for _, req := range reqs {
-		_, vals := ExtractDBTags(req)
+		_, vals := ExtractDBTagsSkip(req, skipping)
 		base = base.Values(vals...)
 	}
 
