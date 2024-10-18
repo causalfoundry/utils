@@ -98,7 +98,9 @@ func GetS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string)
 
 func GetManyS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string, orderby []string) (ret []T, err error) {
 	ret = []T{}
-	query, args, _ := Psql.Select("*").From(table).
+	tmp := make([]T, 1)
+	cols, _ := ExtractDBTags(tmp[0])
+	query, args, _ := Psql.Select(cols...).From(table).
 		Where(AndWhere(where)).
 		OrderBy(strings.Join(orderby, ",")).
 		ToSql()
@@ -336,7 +338,9 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 
 func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any, orderby []string) (ret []T, err error) {
 	ret = []T{}
-	query, args, _ := Psql.Select("*").From(table).
+	tmp := make([]T, 1)
+	cols, _ := ExtractDBTags(tmp[0])
+	query, args, _ := Psql.Select(cols...).From(table).
 		Where(where).
 		OrderBy(strings.Join(orderby, ",")).
 		ToSql()
@@ -347,7 +351,9 @@ func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[s
 }
 
 func GetM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any) (ret T, err error) {
-	query, args, _ := Psql.Select("*").From(table).
+	tmp := make([]T, 1)
+	cols, _ := ExtractDBTags(tmp[0])
+	query, args, _ := Psql.Select(cols...).From(table).
 		Where(where).
 		ToSql()
 	row := con.QueryRowx(query, args...)
