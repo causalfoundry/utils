@@ -258,6 +258,12 @@ func (ih *InsertHelper) Finish() (err error) {
 	if ih.cnt > 0 {
 		query, args, _ := ih.builder.ToSql()
 		_, err = ih.execer.Exec(query, args...)
+		if len(query) > 100 {
+			query = query[:100]
+		}
+		if len(args) > 100 {
+			args = args[:100]
+		}
 		if err != nil {
 			err = fmt.Errorf("err: %w, query: %s, args: %v", err, query, args)
 		}
