@@ -163,14 +163,14 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
 		}
 
-		Migrate(db, newDB, migrationFile)
+		Panic(Migrate(db, newDB, migrationFile))
 	}
 }
 
-func Migrate(db *sql.DB, dbName, migrationFile string) {
+func Migrate(db *sql.DB, dbName, migrationFile string) error {
 	if migrationFile == "" {
 		fmt.Println("nothing to migrate, migration file empty")
-		return
+		return nil
 	}
 	driver, _ := postgres.WithInstance(db, &postgres.Config{})
 	migrateInstance, err := migrate.NewWithDatabaseInstance(
@@ -178,12 +178,11 @@ func Migrate(db *sql.DB, dbName, migrationFile string) {
 		dbName,
 		driver,
 	)
-	Panic(err)
-
-	err = migrateInstance.Up()
 	if err != nil {
-		Panic(err)
+		return err
 	}
+
+	return migrateInstance.Up()
 }
 
 func UpdateClause(headers, pks []string, mergeStrategy map[string]string) string {
