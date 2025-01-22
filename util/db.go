@@ -163,20 +163,26 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
 		}
 
-		if migrationFile != "" {
-			driver, _ := postgres.WithInstance(db, &postgres.Config{})
-			migrateInstance, err := migrate.NewWithDatabaseInstance(
-				"file://"+migrationFile,
-				newDB,
-				driver,
-			)
-			Panic(err)
+		Migrate(db, newDB, migrationFile)
+	}
+}
 
-			err = migrateInstance.Up()
-			if err != nil {
-				Panic(err)
-			}
-		}
+func Migrate(db *sql.DB, dbName, migrationFile string) {
+	if migrationFile == "" {
+		fmt.Println("nothing to migrate, migration file empty")
+		return
+	}
+	driver, _ := postgres.WithInstance(db, &postgres.Config{})
+	migrateInstance, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationFile,
+		dbName,
+		driver,
+	)
+	Panic(err)
+
+	err = migrateInstance.Up()
+	if err != nil {
+		Panic(err)
 	}
 }
 
