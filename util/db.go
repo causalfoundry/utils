@@ -80,6 +80,29 @@ func NewTestDB(migrationPath string) *sqlx.DB {
 	return NewDB(dbName, dbUrl, DBConfig{})
 }
 
+func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
+	var err error
+	var db *sqlx.DB
+	for i := 0; i < retries; i++ {
+		db, err = sqlx.Open("pgx", url)
+		if err != nil {
+			time.Sleep(time.Duration(dur) * time.Second)
+			continue
+		}
+
+		if err = db.Ping(); err != nil {
+			time.Sleep(time.Duration(dur) * time.Second)
+			continue
+		}
+	}
+	if err != nil {
+		panic(fmt.Errorf("err get connection to db: %w", err))
+	}
+
+	prepareDB(dbName, db, dcfg)
+	return db
+}
+
 func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 	db, err := sqlx.Open("pgx", url)
 	if err != nil {
@@ -90,6 +113,12 @@ func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 		panic("cannot ping postgres: " + err.Error())
 	}
 
+	prepareDB(dbName, db, dcfg)
+	return db
+}
+
+func prepareDB(dbName string, db *sqlx.DB, dcfg DBConfig) {
+	var err error
 	dcfg.SetDefault()
 	db.SetMaxOpenConns(dcfg.MaxOpenConn)
 	db.SetConnMaxIdleTime(dcfg.ConnMaxIdleTime)
@@ -106,8 +135,6 @@ func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
 	if err != nil {
 		panic("Error in setting session timezone: " + err.Error())
 	}
-
-	return db
 }
 
 // skip migration if migration file path is empty

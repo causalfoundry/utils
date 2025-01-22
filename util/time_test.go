@@ -79,6 +79,21 @@ func TestTimesOfTsRange(t *testing.T) {
 		assert.True(t, tss[i].Before(tss[i-1]))
 	}
 
+	t.Run("test week", func(t *testing.T) {
+		ts := TsRange{
+			Start:    DateUTC(2025, 1, 15), // thursday
+			End:      DateUTC(2025, 1, 16), // fridays
+			AggLevel: LevelWeek,
+			Order:    "asc",
+		}
+
+		ret, err := ts.TimesBeforeToday()
+		assert.Nil(t, err)
+		for _, r := range ret {
+			fmt.Println(r.Format(time.DateOnly))
+		}
+	})
+
 	t.Run("weekly", func(t *testing.T) {
 		ts := TsRange{
 			Start:    DateUTC(2024, 1, 15),
