@@ -78,9 +78,6 @@ func ListS[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 	if err != nil {
 		log.Err(err).Str("table", table).Msg("error count total")
 	}
-	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Interface("where", wheres).Str("query", query).Interface("args", args).Msg("empty list")
-	}
 	return
 }
 
@@ -99,7 +96,7 @@ func GetS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string)
 func GetManyS[T any](log zerolog.Logger, con *sqlx.DB, table string, where []string, orderby []string) (ret []T, err error) {
 	ret = []T{}
 	tmp := make([]T, 1)
-	cols, _ := ExtractDBTags(tmp[0])
+	cols, _ := ExtractTags(tmp[0], "db", nil)
 	query, args, _ := Psql.Select(cols...).From(table).
 		Where(AndWhere(where)).
 		OrderBy(strings.Join(orderby, ",")).
@@ -168,9 +165,6 @@ func ListFlex[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, 
 		log.Info().Str("query", query).Interface("args", args).Msg("list flex")
 	}
 
-	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Interface("where", where).Str("query", query).Interface("args", args).Msg("empty list")
-	}
 	return
 }
 
@@ -200,10 +194,6 @@ func ListM[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 		RunWith(con).QueryRow().Scan(&total)
 	if err != nil {
 		log.Err(err).Str("table", table).Msg("error count total")
-	}
-
-	if len(ret) == 0 || total == 0 {
-		log.Warn().Str("table", table).Interface("where", where).Str("query", query).Interface("args", args).Msg("empty list")
 	}
 	return
 }
@@ -273,14 +263,14 @@ func CreateManySkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, 
 		}
 	}
 
-	cols, _ := ExtractDBTagsSkip(reqs[0], skipping)
+	cols, _ := ExtractTags(reqs[0], "db", skipping)
 
 	base := Psql.Insert(table).Columns(cols...)
 	if len(returning) != 0 {
 		base = base.Suffix("RETURNING " + strings.Join(returning, ","))
 	}
 	for _, req := range reqs {
-		_, vals := ExtractDBTagsSkip(req, skipping)
+		_, vals := ExtractTags(req, "db", skipping)
 		base = base.Values(vals...)
 	}
 
@@ -316,7 +306,7 @@ func CreateSkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, req 
 		}
 	}
 
-	cols, vals := ExtractDBTagsSkip(req, skipping)
+	cols, vals := ExtractTags(req, "db", skipping)
 	base := Psql.Insert(table).
 		Columns(cols...).
 		Values(vals...)
@@ -339,7 +329,7 @@ func Create[T any](log zerolog.Logger, con sq.BaseRunner, table string, req T, r
 func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any, orderby []string) (ret []T, err error) {
 	ret = []T{}
 	tmp := make([]T, 1)
-	cols, _ := ExtractDBTags(tmp[0])
+	cols, _ := ExtractTags(tmp[0], "db", nil)
 	query, args, _ := Psql.Select(cols...).From(table).
 		Where(where).
 		OrderBy(strings.Join(orderby, ",")).
@@ -352,7 +342,7 @@ func GetManyM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[s
 
 func GetM[T any](log zerolog.Logger, con *sqlx.DB, table string, where map[string]any) (ret T, err error) {
 	tmp := make([]T, 1)
-	cols, _ := ExtractDBTags(tmp[0])
+	cols, _ := ExtractTags(tmp[0], "db", nil)
 	query, args, _ := Psql.Select(cols...).From(table).
 		Where(where).
 		ToSql()

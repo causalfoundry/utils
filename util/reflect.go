@@ -6,14 +6,6 @@ import (
 	"strings"
 )
 
-func ExtractDBTagsSkip(input any, skip []string) (tags []string, vals []any) {
-	return ExtractTags(input, "db", skip)
-}
-
-func ExtractDBTags(input any) (tags []string, vals []any) {
-	return ExtractTags(input, "db", []string{})
-}
-
 func ExtractTags(input any, tagName string, skip []string) (tags []string, vals []any) {
 	val := reflect.ValueOf(input)
 	typ := reflect.TypeOf(input)
@@ -38,7 +30,7 @@ func ExtractTags(input any, tagName string, skip []string) (tags []string, vals 
 			tag := ty.Tag.Get(tagName)
 			val := va.Interface()
 
-			if len(skip) != 0 && Contains(tag, skip) {
+			if tag == "-" || (len(skip) != 0 && Contains(tag, skip)) {
 				continue
 			}
 			tags = append(tags, tag)
@@ -49,13 +41,17 @@ func ExtractTags(input any, tagName string, skip []string) (tags []string, vals 
 	return
 }
 
-func StructDataType(s interface{}) []string {
+func StructDataType(s interface{}, tag string) []string {
 	var ret []string
 	T := reflect.TypeOf(s)
 	if T.Kind() != reflect.Struct {
 		return ret
 	}
 	for _, f := range reflect.VisibleFields(T) {
+		if f.Tag.Get(tag) == "-" {
+			continue
+		}
+
 		if f.Type.Kind().String() == "slice" {
 			ret = append(ret, "_"+strings.ToLower(f.Type.Elem().Name()))
 		} else {
@@ -65,20 +61,7 @@ func StructDataType(s interface{}) []string {
 	return ret
 }
 
-func StructTags(s interface{}, tagName string, except map[string]any) (ret []string) {
-	T := reflect.TypeOf(s)
-	if T.Kind() != reflect.Struct {
-		return
-	}
-	for _, f := range reflect.VisibleFields(T) {
-		name := f.Tag.Get(tagName)
-		if name != "" {
-			if v, ok := except[name]; ok {
-				ret = append(ret, StructTags(v, tagName, nil)...)
-			} else {
-				ret = append(ret, f.Tag.Get(tagName))
-			}
-		}
-	}
-	return ret
+func StructTags(s interface{}, tagName string, except []string) (ret []string) {
+	ret, _ = ExtractTags(s, tagName, except)
+	return
 }
