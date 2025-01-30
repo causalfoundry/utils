@@ -64,6 +64,63 @@ func Print(obj ...any) {
 	}
 }
 
+// assume first letter is upper
+func CamelToSnake2(s string) string {
+	var idx int
+	var tmp []string
+	var group string
+	for {
+		if len(strings.Join(tmp, "")) == len(s) {
+			return strings.Join(tmp, "_")
+		}
+
+		group, idx = findNextGroup(s[idx:])
+		tmp = append(tmp, strings.ToLower(group))
+	}
+}
+
+func findNextGroup(s string) (string, int) {
+	var left = 0
+	var right = -1
+
+	if len(s) == 0 {
+		return "", 0
+	}
+
+	if unicode.IsUpper(rune(s[0])) {
+		// first letter is upper
+		for i := left + 1; i < len(s); i++ {
+			if unicode.IsUpper(rune(s[i])) && unicode.IsLower(rune(s[i-1])) {
+				right = i
+				break
+			}
+		}
+
+	} else {
+		// first letter is lower
+		for i, r := range s {
+			if unicode.IsUpper(r) {
+				right = i
+				break
+			}
+		}
+	}
+
+	if right < 0 {
+		right = len(s)
+	}
+	return s[left:right], right
+}
+
+func findNextUpper(s string) int {
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			return i
+		}
+	}
+	return -1
+}
+
 func CamelToSnake(s string) string {
 	var result strings.Builder
 	for i, r := range s {
