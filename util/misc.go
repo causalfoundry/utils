@@ -112,15 +112,6 @@ func findNextGroup(s string) (string, int) {
 	return s[left:right], right
 }
 
-func findNextUpper(s string) int {
-	for i, r := range s {
-		if unicode.IsUpper(r) {
-			return i
-		}
-	}
-	return -1
-}
-
 func CamelToSnake(s string) string {
 	var result strings.Builder
 	for i, r := range s {
