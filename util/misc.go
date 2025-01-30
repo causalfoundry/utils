@@ -66,15 +66,16 @@ func Print(obj ...any) {
 
 // assume first letter is upper
 func CamelToSnake2(s string) string {
-	var idx int
+	var idx, accIdx int
 	var tmp []string
 	var group string
 	for {
-		if len(strings.Join(tmp, "")) == len(s) {
+		if accIdx >= len(s) {
 			return strings.Join(tmp, "_")
 		}
 
-		group, idx = findNextGroup(s[idx:])
+		group, idx = findNextGroup(s[accIdx:])
+		accIdx += idx
 		tmp = append(tmp, strings.ToLower(group))
 	}
 }

@@ -37,4 +37,7 @@ func TestCamelToSnakeBetter(t *testing.T) {
 
 	ret = CamelToSnake2("ABCd")
 	assert.Equal(t, ret, "abcd")
+
+	ret = CamelToSnake2("PrescribedTestsList")
+	assert.Equal(t, ret, "prescribed_tests_list")
 }
