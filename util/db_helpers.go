@@ -279,7 +279,11 @@ func CreateManySkip[T any](log zerolog.Logger, con sq.BaseRunner, table string, 
 		return
 	}
 	rows, err := con.Query(query, args...)
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 	if err != nil {
 		log.Err(err).Str("query", query).Msg("error create many")
 		return
