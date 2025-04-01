@@ -8,7 +8,7 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	db := NewTestDB("")
+	db := NewTestPostgresDB("")
 	_, err := db.Exec("CREATE TABLE test (a int, b int)")
 	assert.Nil(t, err)
 

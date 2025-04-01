@@ -21,7 +21,7 @@ func TestDecimal(t *testing.T) {
 		Price Decimal `json:"price" db:"price"`
 	}
 
-	db := NewTestDB("")
+	db := NewTestPostgresDB("")
 
 	t.Run("json", func(t *testing.T) {
 		actual := mock{

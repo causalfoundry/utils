@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -71,11 +72,22 @@ func (d *DBConfig) SetDefault() {
 }
 
 // base db name and access is hardcoded, and it's linked with Storage-Up in Makefile
-func NewTestDB(migrationPath string) *sqlx.DB {
+func NewTestPostgresDB(migrationPath string) *sqlx.DB {
 	dbName := RandomAlphabets(10, true)
-	baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
-	dbUrl := strings.ReplaceAll(baseUrl, "postgres", dbName)
+	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
+	baseUrl := "postgres://user:pwd@localhost:5432/postgres?sslmode=disable"
+	dbUrl := strings.ReplaceAll(baseUrl, "/postgres", "/"+dbName)
 	SetupLocalStorage(dbName, "postgres", baseUrl, migrationPath)
+	fmt.Println("---- " + dbName)
+	return NewDB(dbName, dbUrl, DBConfig{})
+}
+
+func NewTestClickhouseDB(migrationPath string) *sqlx.DB {
+	dbName := RandomAlphabets(10, true)
+	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
+	baseUrl := "clickhouse://user:pwd@localhost:9000/default"
+	dbUrl := strings.ReplaceAll(baseUrl, "default", dbName)
+	SetupLocalStorage(dbName, "default", baseUrl, migrationPath)
 	fmt.Println("---- " + dbName)
 	return NewDB(dbName, dbUrl, DBConfig{})
 }
@@ -103,17 +115,27 @@ func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
 	return db
 }
 
-func NewDB(dbName, url string, dcfg DBConfig) *sqlx.DB {
-	db, err := sqlx.Open("pgx", url)
-	if err != nil {
-		panic("cannot get postgres connection: " + err.Error())
+func NewDB(dbName, url string, dcfg DBConfig) (db *sqlx.DB) {
+	var err error
+	switch getDBFromUrl(url) {
+	case "clickhouse":
+		db, err = sqlx.Open("clickhouse", url)
+		if err != nil {
+			panic("cannot get db connection: " + err.Error())
+		}
+	case "postgres":
+		db, err = sqlx.Open("pgx", url)
+		if err != nil {
+			panic("cannot get db connection: " + err.Error())
+		}
+
+		if err = db.Ping(); err != nil {
+			panic("cannot ping db: " + err.Error())
+		}
+
+		prepareDB(dbName, db, dcfg)
 	}
 
-	if err = db.Ping(); err != nil {
-		panic("cannot ping postgres: " + err.Error())
-	}
-
-	prepareDB(dbName, db, dcfg)
 	return db
 }
 
@@ -125,30 +147,57 @@ func prepareDB(dbName string, db *sqlx.DB, dcfg DBConfig) {
 	db.SetMaxIdleConns(dcfg.MaxIdelConn)
 	db.SetConnMaxLifetime(dcfg.ConnMaxLifetime)
 
-	_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", dbName))
-	if err != nil {
-		panic("Error in setting timezone: " + err.Error())
-	}
+	switch db.DriverName() {
+	case "postgres":
+		_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", dbName))
+		if err != nil {
+			panic("Error in setting timezone: " + err.Error())
+		}
 
-	// Set the timezone for the current session
-	_, err = db.Exec("SET TIMEZONE TO 'UTC'")
-	if err != nil {
-		panic("Error in setting session timezone: " + err.Error())
+		// Set the timezone for the current session
+		_, err = db.Exec("SET TIMEZONE TO 'UTC'")
+		if err != nil {
+			panic("Error in setting session timezone: " + err.Error())
+		}
 	}
+}
+
+func getDBFromUrl(url string) string {
+	i := strings.Index(url, ":")
+	return url[:i]
 }
 
 // skip migration if migration file path is empty
 func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
-	db, err := sql.Open("pgx", baseUrl)
-	if err != nil {
-		panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
-	}
-
+	var db *sql.DB
+	var err error
+	dbType := getDBFromUrl(baseUrl)
 	var exist bool
-	row := db.QueryRow("select exists (select 1 from pg_database where datname = $1)", newDB)
-	err = row.Scan(&exist)
-	if err != nil {
-		panic(err.Error())
+
+	switch dbType {
+	case "postgres":
+		db, err = sql.Open("pgx", baseUrl)
+		if err != nil {
+			panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
+		}
+
+		row := db.QueryRow("select exists (select 1 from pg_database where datname = $1)", newDB)
+		err = row.Scan(&exist)
+		if err != nil {
+			panic(err.Error())
+		}
+	case "clickhouse":
+		db, err = sql.Open("clickhouse", baseUrl)
+		if err != nil {
+			panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
+		}
+		row := db.QueryRow("SELECT count() > 0 FROM system.databases WHERE name = $1", newDB)
+		err = row.Scan(&exist)
+		if err != nil {
+			panic(err.Error())
+		}
+	default:
+		panic("unknown db: " + dbType)
 	}
 
 	if !exist {
@@ -159,8 +208,15 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 		db.Close()
 
 		newUrl := strings.ReplaceAll(baseUrl, baseDB, newDB)
-		if db, err = sql.Open("pgx", newUrl); err != nil {
-			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
+		switch dbType {
+		case "postgres":
+			if db, err = sql.Open("pgx", newUrl); err != nil {
+				panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
+			}
+		case "clickhouse":
+			if db, err = sql.Open("clickhouse", newUrl); err != nil {
+				panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
+			}
 		}
 
 		Panic(Migrate(db, newDB, migrationFile))

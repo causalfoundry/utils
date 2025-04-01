@@ -8,7 +8,7 @@ import (
 )
 
 func TestNullFloat64(t *testing.T) {
-	db := NewTestDB("")
+	db := NewTestPostgresDB("")
 
 	var f NullFloat64
 	err := db.QueryRow("SELECT null").Scan(&f)

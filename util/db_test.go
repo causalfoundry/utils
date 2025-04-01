@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestGetDB(t *testing.T) {
+	db := NewTestClickhouseDB("")
+	assert.NotNil(t, db)
+	db = NewTestPostgresDB("")
+	assert.NotNil(t, db)
+}
+
 func TestMultipleJsonbSet(t *testing.T) {
 	ret := MultipleJsonbSet("metric",
 		map[string]any{
@@ -68,7 +75,7 @@ func TestParseDBArray(t *testing.T) {
 }
 
 func TestTimePointsToFiller(t *testing.T) {
-	db := NewTestDB("")
+	db := NewTestPostgresDB("")
 	type result struct {
 		ID   string    `db:"id"`
 		Time time.Time `db:"time"`
@@ -84,7 +91,7 @@ func TestTimePointsToFiller(t *testing.T) {
 }
 
 func TestPrepareIDPartition(t *testing.T) {
-	db := NewTestDB("")
+	db := NewTestPostgresDB("")
 	_, err := db.Exec("CREATE SCHEMA common")
 	assert.Nil(t, err)
 	_, err = db.Exec("CREATE TABLE common.a (id serial not null, val int) PARTITION BY RANGE (id)")
