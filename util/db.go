@@ -95,8 +95,16 @@ func NewTestClickhouseDB(migrationPath string) *sqlx.DB {
 func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
 	var err error
 	var db *sqlx.DB
-	for i := 0; i < retries; i++ {
+
+	switch getDBFromUrl(url) {
+	case "postgres":
 		db, err = sqlx.Open("pgx", url)
+	case "clickhouse":
+		db, err = sqlx.Open("clickhouse", url)
+	default:
+		return nil
+	}
+	for i := 0; i < retries; i++ {
 		if err != nil {
 			time.Sleep(time.Duration(dur) * time.Second)
 			continue

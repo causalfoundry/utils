@@ -13,6 +13,14 @@ check: storage-up
 	@golangci-lint run ./...
 	@go test ./...
 
+clean-release: check
+ifndef TAG
+	$(error TAG is not defined. Usage: make tag-and-push TAG=<tag-name>)
+endif
+	git tag -d $(TAG)
+	git push --delete origin $(TAG)
+	git push origin main && git tag $(TAG) && git push origin $(TAG)
+
 release: check
 ifndef TAG
 	$(error TAG is not defined. Usage: make tag-and-push TAG=<tag-name>)
