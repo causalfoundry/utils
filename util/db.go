@@ -14,6 +14,8 @@ import (
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/database/clickhouse"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -227,17 +229,24 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 				panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
 			}
 		}
-
-		Panic(Migrate(db, newDB, migrationFile))
+		Panic(Migrate(dbType, db, newDB, migrationFile))
 	}
 }
 
-func Migrate(db *sql.DB, dbName, migrationFile string) error {
+func Migrate(dbType string, db *sql.DB, dbName, migrationFile string) error {
 	if migrationFile == "" {
 		fmt.Println("nothing to migrate, migration file empty")
 		return nil
 	}
-	driver, _ := postgres.WithInstance(db, &postgres.Config{})
+
+	var driver database.Driver
+	switch dbType {
+	case "postgres":
+		driver, _ = postgres.WithInstance(db, &postgres.Config{})
+	case "clickhouse":
+		driver, _ = clickhouse.WithInstance(db, &clickhouse.Config{})
+	}
+
 	migrateInstance, err := migrate.NewWithDatabaseInstance(
 		"file://"+migrationFile,
 		dbName,
