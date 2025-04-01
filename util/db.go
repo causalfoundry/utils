@@ -104,6 +104,7 @@ func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
 	default:
 		return nil
 	}
+
 	for i := 0; i < retries; i++ {
 		if err != nil {
 			time.Sleep(time.Duration(dur) * time.Second)
