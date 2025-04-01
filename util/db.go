@@ -216,7 +216,7 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 		}
 		db.Close()
 
-		newUrl := strings.ReplaceAll(baseUrl, baseDB, newDB)
+		newUrl := strings.ReplaceAll(baseUrl, "/"+baseDB, "/"+newDB)
 		switch dbType {
 		case "postgres":
 			if db, err = sql.Open("pgx", newUrl); err != nil {
