@@ -87,7 +87,7 @@ func NewTestPostgresDB(migrationPath string) *sqlx.DB {
 func NewTestClickhouseDB(migrationPath string) *sqlx.DB {
 	dbName := RandomAlphabets(10, true)
 	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
-	baseUrl := "clickhouse://user:pwd@localhost:9000/default"
+	baseUrl := "clickhouse://user:pwd@localhost:9000/default?"
 	dbUrl := strings.ReplaceAll(baseUrl, "default", dbName)
 	SetupLocalStorage(dbName, "default", baseUrl, migrationPath)
 	fmt.Println("---- " + dbName)
@@ -219,18 +219,45 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 		db.Close()
 
 		newUrl := strings.ReplaceAll(baseUrl, "/"+baseDB, "/"+newDB)
-		switch dbType {
-		case "postgres":
-			if db, err = sql.Open("pgx", newUrl); err != nil {
-				panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
-			}
-		case "clickhouse":
-			if db, err = sql.Open("clickhouse", newUrl); err != nil {
-				panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
-			}
-		}
-		Panic(Migrate(dbType, db, newDB, migrationFile))
+		Panic(Migrate2(newUrl, newDB, migrationFile))
 	}
+}
+
+func Migrate2(dbUrl, dbName, migrationFile string) error {
+	if migrationFile == "" {
+		fmt.Println("nothing to migrate, migration file empty")
+		return nil
+	}
+
+	var driver database.Driver
+	var err error
+
+	if strings.HasPrefix(dbUrl, "postgres") {
+		db, err := sql.Open("pgx", dbUrl)
+		if err != nil {
+			panic(fmt.Sprintf("error get new database connection: %s", err.Error()))
+		}
+		driver, _ = postgres.WithInstance(db, &postgres.Config{})
+	}
+
+	if strings.HasPrefix(dbUrl, "clickhouse") {
+		p := &clickhouse.ClickHouse{}
+		driver, err = p.Open(dbUrl + "x-multi-statement=true")
+		if err != nil {
+			return err
+		}
+	}
+
+	migrateInstance, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationFile,
+		dbName,
+		driver,
+	)
+	if err != nil {
+		return err
+	}
+
+	return migrateInstance.Up()
 }
 
 func Migrate(dbType string, db *sql.DB, dbName, migrationFile string) error {

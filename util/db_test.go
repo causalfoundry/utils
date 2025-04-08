@@ -2,11 +2,23 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMutlilineMigrationForClickhouse(t *testing.T) {
+	dir, _ := os.Getwd()
+	db := NewTestClickhouseDB(dir + "/.." + "/migrations/clickhouse")
+	assert.NotNil(t, db)
+	assert.Nil(t, db.Ping())
+
+	db = NewTestPostgresDB(dir + "/.." + "/migrations/postgres")
+	assert.NotNil(t, db)
+	assert.Nil(t, db.Ping())
+}
 
 func TestGetDB(t *testing.T) {
 	db := NewTestClickhouseDB("")
