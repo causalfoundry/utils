@@ -7,7 +7,7 @@ storage-down:
 
 storage-up: teardown-docker 
 	@(docker container inspect clh > /dev/null && docker start clh) || (docker run -d -p 9000:9000 -e CLICKHOUSE_USER=user -e CLICKHOUSE_PASSWORD=pwd -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 --name clh --ulimit nofile=262144:262144 clickhouse/clickhouse-server:25.3)
-	@(docker container inspect psg > /dev/null && docker start psg) || (docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=pwd -e POSTGRES_USER=user -e POSTGRES_DB=postgres --name psg postgres:15 -c max_connections=500)
+	@(docker container inspect psg > /dev/null && docker start psg) || (docker run -d -p 5433:5432 -e POSTGRES_PASSWORD=pwd -e POSTGRES_USER=user -e POSTGRES_DB=postgres --name psg postgres:15 -c max_connections=500)
 
 check: storage-up
 	@golangci-lint run ./...

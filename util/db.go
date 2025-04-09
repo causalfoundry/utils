@@ -77,7 +77,7 @@ func (d *DBConfig) SetDefault() {
 func NewTestPostgresDB(migrationPath string) *sqlx.DB {
 	dbName := RandomAlphabets(10, true)
 	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
-	baseUrl := "postgres://user:pwd@localhost:5432/postgres?sslmode=disable"
+	baseUrl := "postgres://user:pwd@localhost:5433/postgres?sslmode=disable"
 	dbUrl := strings.ReplaceAll(baseUrl, "/postgres", "/"+dbName)
 	SetupLocalStorage(dbName, "postgres", baseUrl, migrationPath)
 	fmt.Println("---- " + dbName)
