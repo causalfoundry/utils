@@ -77,7 +77,7 @@ func (d *DBConfig) SetDefault() {
 func NewTestPostgresDB(migrationPath string) *sqlx.DB {
 	dbName := RandomAlphabets(10, true)
 	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
-	baseUrl := "postgres://user:pwd@localhost:5433/postgres?sslmode=disable"
+	baseUrl := "postgres://user:pwd@localhost:5439/postgres?sslmode=disable"
 	dbUrl := strings.ReplaceAll(baseUrl, "/postgres", "/"+dbName)
 	SetupLocalStorage(dbName, "postgres", baseUrl, migrationPath)
 	fmt.Println("---- " + dbName)
@@ -87,7 +87,7 @@ func NewTestPostgresDB(migrationPath string) *sqlx.DB {
 func NewTestClickhouseDB(migrationPath string) *sqlx.DB {
 	dbName := RandomAlphabets(10, true)
 	//baseUrl := "host=localhost port=5432 dbname=postgres user=user password=pwd sslmode=disable"
-	baseUrl := "clickhouse://user:pwd@localhost:9000/default?"
+	baseUrl := "clickhouse://user:pwd@localhost:9009/default?"
 	dbUrl := strings.ReplaceAll(baseUrl, "default", dbName)
 	SetupLocalStorage(dbName, "default", baseUrl, migrationPath)
 	fmt.Println("---- " + dbName)

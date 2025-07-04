@@ -2,12 +2,19 @@ teardown-docker:
 	@docker container prune -f
 	@docker volume prune -f
 
-storage-down:
-	@docker kill psg && docker rm psg
 
-storage-up: teardown-docker 
-	@(docker container inspect clh > /dev/null && docker start clh) || (docker run -d -p 9000:9000 -e CLICKHOUSE_USER=user -e CLICKHOUSE_PASSWORD=pwd -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 --name clh --ulimit nofile=262144:262144 clickhouse/clickhouse-server:25.3)
-	@(docker container inspect psg > /dev/null && docker start psg) || (docker run -d -p 5433:5432 -e POSTGRES_PASSWORD=pwd -e POSTGRES_USER=user -e POSTGRES_DB=postgres --name psg postgres:15 -c max_connections=500)
+network-up:
+	@docker network inspect local-net-util >/dev/null 2>&1 || \
+    docker network create --driver bridge local-net-util
+
+
+storage-down:
+	@docker kill psg-util && docker rm psg-util || true
+	@docker kill clh-util && docker rm clh-util || true
+
+storage-up: storage-down teardown-docker network-up 
+	@(docker run -d -p 9009:9000 --network local-net-util -e CLICKHOUSE_USER=user -e CLICKHOUSE_PASSWORD=pwd -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 --name clh-util --ulimit nofile=262144:262144 clickhouse/clickhouse-server:25.3)
+	@(docker run -d -p 5439:5432 --network local-net-util -e POSTGRES_PASSWORD=pwd -e POSTGRES_USER=user -e POSTGRES_DB=postgres --name psg-util postgres:15 -c max_connections=500)
 
 check: storage-up
 	@golangci-lint run ./...
