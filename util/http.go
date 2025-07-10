@@ -83,7 +83,7 @@ func RespJSON(ctx echo.Context, err error, payload any) error {
 
 func errHandle(ctx echo.Context, err error) error {
 	if e, ok := err.(Err); ok {
-		return ctx.JSON(e.Code, e)
+		return ctx.JSON(e.Code, e.Msg)
 	}
 	switch err {
 	case sql.ErrNoRows:
