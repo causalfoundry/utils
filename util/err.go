@@ -13,7 +13,7 @@ var (
 
 type Err struct {
 	Code int    `json:"code"`
-	Msg  string `json:"msg"`
+	Msg  string `json:"message"`
 	Data any    `json:"data"`
 }
 
