@@ -182,7 +182,6 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 	var db *sql.DB
 	var err error
 	dbType := getDBFromUrl(baseUrl)
-	var exist bool
 
 	switch dbType {
 	case "postgres":
@@ -191,35 +190,29 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 			panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
 		}
 
-		row := db.QueryRow("select exists (select 1 from pg_database where datname = $1)", newDB)
-		err = row.Scan(&exist)
-		if err != nil {
-			panic(err.Error())
-		}
+		_, err = db.Exec("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", newDB)
+		Panic(err)
+		_, err = db.Exec(fmt.Sprintf("drop database if exists %s", newDB))
+		Panic(err)
 	case "clickhouse":
 		db, err = sql.Open("clickhouse", baseUrl)
 		if err != nil {
 			panic(fmt.Sprintf("error get base database connection: %s", err.Error()))
 		}
-		row := db.QueryRow("SELECT count() > 0 FROM system.databases WHERE name = $1", newDB)
-		err = row.Scan(&exist)
-		if err != nil {
-			panic(err.Error())
-		}
+		_, err = db.Exec(fmt.Sprintf("drop database if exists %s", newDB))
+		Panic(err)
 	default:
 		panic("unknown db: " + dbType)
 	}
 
-	if !exist {
-		_, err = db.Exec("CREATE DATABASE " + newDB)
-		if err != nil {
-			panic("error create local database: " + err.Error())
-		}
-		db.Close()
-
-		newUrl := strings.ReplaceAll(baseUrl, "/"+baseDB, "/"+newDB)
-		Panic(Migrate2(newUrl, newDB, migrationFile))
+	_, err = db.Exec("CREATE DATABASE " + newDB)
+	if err != nil {
+		panic("error create local database: " + err.Error())
 	}
+	db.Close()
+
+	newUrl := strings.ReplaceAll(baseUrl, "/"+baseDB, "/"+newDB)
+	Panic(Migrate2(newUrl, newDB, migrationFile))
 }
 
 func Migrate2(dbUrl, dbName, migrationFile string) error {
