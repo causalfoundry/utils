@@ -20,11 +20,13 @@ type TZ string // +08:00
 type AggLevel string
 
 const (
-	LevelNA    AggLevel = "n/a"
-	LevelHour  AggLevel = "hour"
-	LevelDay   AggLevel = "day"
-	LevelWeek  AggLevel = "week"
-	LevelMonth AggLevel = "month"
+	LevelNA     AggLevel = "n/a"
+	LevelNone   AggLevel = "point"
+	LevelWindow AggLevel = "window"
+	LevelHour   AggLevel = "hour"
+	LevelDay    AggLevel = "day"
+	LevelWeek   AggLevel = "week"
+	LevelMonth  AggLevel = "month"
 )
 
 func (a AggLevel) ToAggly() (res string) {
