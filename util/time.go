@@ -21,7 +21,7 @@ type AggLevel string
 
 const (
 	LevelNA     AggLevel = "n/a"
-	LevelNone   AggLevel = "point"
+	LevelPoint  AggLevel = "point"
 	LevelWindow AggLevel = "window"
 	LevelHour   AggLevel = "hour"
 	LevelDay    AggLevel = "day"
