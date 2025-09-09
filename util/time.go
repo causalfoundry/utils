@@ -23,6 +23,7 @@ const (
 	LevelNA     AggLevel = "n/a"
 	LevelPoint  AggLevel = "point"
 	LevelWindow AggLevel = "window"
+	LevelMinute AggLevel = "minute"
 	LevelHour   AggLevel = "hour"
 	LevelDay    AggLevel = "day"
 	LevelWeek   AggLevel = "week"
