@@ -110,7 +110,7 @@ func ToDateUTC(t time.Time) time.Time {
 
 func IsStartOfMonth(a time.Time) bool {
 	startOfMonth := StartOfMonth(a)
-	return startOfMonth == a
+	return startOfMonth.Equal(a)
 }
 
 func IsLastDayOfMonth(a time.Time) bool {

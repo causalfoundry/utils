@@ -209,7 +209,7 @@ func SetupLocalStorage(newDB, baseDB, baseUrl, migrationFile string) {
 	if err != nil {
 		panic("error create local database: " + err.Error())
 	}
-	db.Close()
+	func() { _ = db.Close() }()
 
 	newUrl := strings.ReplaceAll(baseUrl, "/"+baseDB, "/"+newDB)
 	Panic(Migrate2(newUrl, newDB, migrationFile))
@@ -535,11 +535,12 @@ func ParseDBArray[T any](repr string) (ret []T, err error) {
 		var res []bool
 		var v bool
 		for _, token := range tokens {
-			if token == "t" {
+			switch token {
+			case "t":
 				v = true
-			} else if token == "f" {
+			case "f":
 				v = false
-			} else {
+			default:
 				err = fmt.Errorf("unrecognised token %s in bool array", token)
 				return
 			}
