@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 )
@@ -35,26 +36,36 @@ func (o NullFloat64) MarshalJSON() ([]byte, error) {
 	return json.Marshal(o.V)
 }
 
-func (o *Objs) Scan(value interface{}) error {
+func (o *Objs) Scan(value any) error {
 	if value == nil {
 		*o = Objs{}
 		return nil
 	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return ErrNotBytes
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return errors.New("cannot marshal to objs")
 	}
 	return json.Unmarshal(bytes, o)
 }
 
-func (o *Obj) Scan(value interface{}) error {
+func (o *Obj) Scan(value any) error {
 	if value == nil {
 		*o = Obj{}
 		return nil
 	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return ErrNotBytes
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return errors.New("cannot marshal to objs")
 	}
 	return json.Unmarshal(bytes, o)
 }
