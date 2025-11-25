@@ -60,13 +60,13 @@ func RespNoContent(ctx echo.Context, err error) error {
 	}
 }
 
-func RespCSV(ctx echo.Context, err error, csv, fileName string) error {
+func RespCSV(ctx echo.Context, err error, csv []byte, fileName string) error {
 	ctx.Response().Header().Set("Content-Type", "text/csv")
 	ctx.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	switch err {
 	case nil:
-		return ctx.String(http.StatusOK, csv)
+		return ctx.Blob(http.StatusOK, "text/csv", csv)
 	default:
 		return errHandle(ctx, err)
 	}
