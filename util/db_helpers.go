@@ -198,6 +198,222 @@ func ListM[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, whe
 	return
 }
 
+func ListQ[T any](log zerolog.Logger, con *sqlx.DB, page Page, table string, where sq.Sqlizer, order []string) (ret []T, total int, err error) {
+	ret = []T{}
+
+	cols := dbColsForType[T]()
+	orderBy, err := normalizeOrderBy(order, cols)
+	if err != nil {
+		log.Err(err).Str("table", table).Strs("order", order).Msg("error normalize order")
+		return
+	}
+
+	base := Psql.Select(cols...).From(table)
+	if where != nil {
+		base = base.Where(where)
+	}
+	if len(orderBy) != 0 {
+		base = base.OrderBy(orderBy...)
+	}
+
+	query, args, err := base.
+		Offset(page.Offset()).
+		Limit(page.Limit()).
+		ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build list query")
+		return
+	}
+
+	if err = con.Select(&ret, query, args...); err != nil {
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Msg("error select")
+		return
+	}
+
+	total, err = CountQ(log, con, table, where)
+	return
+}
+
+func GetQ[T any](log zerolog.Logger, con *sqlx.DB, table string, where sq.Sqlizer) (ret T, err error) {
+	cols := dbColsForType[T]()
+	base := Psql.Select(cols...).From(table)
+	if where != nil {
+		base = base.Where(where)
+	}
+
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build get query")
+		return
+	}
+
+	if err = con.QueryRowx(query, args...).StructScan(&ret); err != nil {
+		log.Err(err).Type("type", ret).Str("table", table).Str("query", query).Interface("args", args).Msg("error get")
+		if err == sql.ErrNoRows {
+			err = NewErr(http.StatusNotFound, "resource not found", map[string]string{
+				"type": fmt.Sprintf("%T", ret),
+			})
+		}
+	}
+	return
+}
+
+func GetManyQ[T any](log zerolog.Logger, con *sqlx.DB, table string, where sq.Sqlizer, order []string) (ret []T, err error) {
+	ret = []T{}
+
+	cols := dbColsForType[T]()
+	orderBy, err := normalizeOrderBy(order, cols)
+	if err != nil {
+		log.Err(err).Str("table", table).Strs("order", order).Msg("error normalize order")
+		return
+	}
+
+	base := Psql.Select(cols...).From(table)
+	if where != nil {
+		base = base.Where(where)
+	}
+	if len(orderBy) != 0 {
+		base = base.OrderBy(orderBy...)
+	}
+
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build get many query")
+		return
+	}
+
+	if err = con.Select(&ret, query, args...); err != nil {
+		log.Err(err).Type("type", ret).Str("table", table).Str("query", query).Interface("args", args).Msg("error get many")
+	}
+	return
+}
+
+func CountQ(log zerolog.Logger, con *sqlx.DB, table string, where sq.Sqlizer) (total int, err error) {
+	base := Psql.Select("COUNT(*)").From(table)
+	if where != nil {
+		base = base.Where(where)
+	}
+
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build count query")
+		return
+	}
+
+	if err = con.QueryRow(query, args...).Scan(&total); err != nil {
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Msg("error count")
+	}
+	return
+}
+
+func ExistQ(log zerolog.Logger, con *sqlx.DB, table string, where sq.Sqlizer) (ret bool, err error) {
+	base := Psql.Select("1").From(table).Limit(1)
+	if where != nil {
+		base = base.Where(where)
+	}
+
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build exist query")
+		return
+	}
+
+	var one int
+	if err = con.QueryRow(query, args...).Scan(&one); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Msg("error exist")
+		return false, err
+	}
+	return true, nil
+}
+
+func UpdateQ(log zerolog.Logger, con sq.BaseRunner, table string, where sq.Sqlizer, sets map[string]any) (err error) {
+	if where == nil {
+		return fmt.Errorf("refuse update without where")
+	}
+	if len(sets) == 0 {
+		return nil
+	}
+
+	base := Psql.Update(table).SetMap(sets).Where(where)
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Interface("updates", sets).Msg("error build update query")
+		return
+	}
+
+	if _, err = con.Exec(query, args...); err != nil {
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Interface("updates", sets).Msg("error update")
+	}
+	return
+}
+
+func DeleteQ(log zerolog.Logger, con sq.BaseRunner, table string, where sq.Sqlizer) (err error) {
+	if where == nil {
+		return fmt.Errorf("refuse delete without where")
+	}
+
+	base := Psql.Delete(table).Where(where)
+	query, args, err := base.ToSql()
+	if err != nil {
+		log.Err(err).Str("table", table).Interface("where", where).Msg("error build delete query")
+		return
+	}
+
+	if _, err = con.Exec(query, args...); err != nil {
+		log.Err(err).Str("table", table).Str("query", query).Interface("args", args).Msg("error delete")
+	}
+	return
+}
+
+func dbColsForType[T any]() []string {
+	cols, _ := ExtractTags(*new(T), "db", nil)
+	return cols
+}
+
+func normalizeOrderBy(order, allowed []string) (ret []string, err error) {
+	if len(order) == 0 {
+		return nil, nil
+	}
+
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, col := range allowed {
+		allowedSet[col] = struct{}{}
+	}
+
+	for _, raw := range order {
+		parts := strings.Fields(strings.TrimSpace(raw))
+		if len(parts) == 0 {
+			continue
+		}
+		if len(parts) > 2 {
+			return nil, fmt.Errorf("invalid order clause: %q", raw)
+		}
+
+		col := parts[0]
+		baseCol := col
+		if idx := strings.LastIndex(col, "."); idx >= 0 {
+			baseCol = col[idx+1:]
+		}
+		if _, ok := allowedSet[baseCol]; !ok {
+			return nil, fmt.Errorf("invalid order column: %q", col)
+		}
+
+		dir := "ASC"
+		if len(parts) == 2 {
+			dir = strings.ToUpper(parts[1])
+			if dir != "ASC" && dir != "DESC" {
+				return nil, fmt.Errorf("invalid order direction: %q", raw)
+			}
+		}
+		ret = append(ret, fmt.Sprintf("%s %s", col, dir))
+	}
+
+	return ret, nil
+}
+
 func UpdateMore(log zerolog.Logger, con sq.BaseRunner, table string, ids []int, sets map[string]any) (err error) {
 	_, err = Psql.Update(table).
 		SetMap(sets).
