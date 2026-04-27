@@ -1,14 +1,113 @@
 package util
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMS(t *testing.T) {
-	//m := MicroSoftJwtParser{}
+type fakeJwtParser struct {
+	payload UserPayload
+	err     error
+}
 
-	//token := `eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlNQODlCMFZZV1NmZmJuT2N2aGtZQm1QZG8zTSJ9.eyJ2ZXIiOiIyLjAiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTE4ODA0MGQtNmM2Ny00YzViLWIxMTItMzZhMzA0YjY2ZGFkL3YyLjAiLCJzdWIiOiJBQUFBQUFBQUFBQUFBQUFBQUFBQUFCNG1Oa092YzNOQ0M0TEtyaU11RXRzIiwiYXVkIjoiMWUwNDBhOTUtYmVkMy00NmIzLWI1NmQtZjc1ZmFmZDM2ZWM4IiwiZXhwIjoxNzE2NTcyMTY5LCJpYXQiOjE3MTY0ODU0NjksIm5iZiI6MTcxNjQ4NTQ2OSwibmFtZSI6Ik1PSVogSEFTU0FOIC0gQ0YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJtb2l6bTEzQGdtYWlsLmNvbSIsIm9pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC01N2NlLWQwMDJmMTJmZjFkYyIsInRpZCI6IjkxODgwNDBkLTZjNjctNGM1Yi1iMTEyLTM2YTMwNGI2NmRhZCIsIm5vbmNlIjoiMDE4ZmE2ODUtNGVmZS03MDA1LWFiNjgtOGU0ZGI2NDljODk5IiwiYWlvIjoiRGlTOXE5RndJdEhwZVRvIXlKamFGV0VNZHRGNnZoQnMzMHY4cTUzQnF4YmFIbHFNUHJ4UUlNb0dNcVchTEtXWXJEb0w2bWNzTVBnRUJkV0E5R3htd0NwVjJpNElPYWJoVEV4T2J2RDBFQ0RNalNGMFVWMDV5aVhTVVZLdVFoRGpQMkM4Q3ZQVE0yaXVVQlNOSENWNFEhTTFFTFpjM3lBeTJmaEZTVDlkVTBTbiJ9.iCuGpuBi_0qSR68B5OVL6tI6qoCLR__sLxgNfavtv2pkLVIW1_Dp_G6v3kpvuj6YAkT0nOuqgKpXm5w12Vr_c975qm692_XbnAB1yX2TjXu-tk-yUnhWi6da9WofC_hVFv_m-K1lCg_cx0J53c78odFF7w0PV2kaCSeKjZJkjg_zXSJQBrT_XxnioixzWlM5H6CzyxJAGFcMdLGHs307l6Ij9s7fOyzK5jJP02kZ-akMG52sz4mt-M62NIhupE_WvCSo4NqYXRK9ETaqjUEJUlcmCByUIfixX3NXzadVEHT5jfj6Cehc_c28YOv4wd6UkTx0iXRLqv5VNBUdTWGF5Q`
-	//ret, err := m.TokenToPayload(token)
-	//assert.Nil(t, err)
-	//assert.NotEmpty(t, ret.Username)
+func (f fakeJwtParser) TokenToPayload(_ string) (UserPayload, error) {
+	return f.payload, f.err
+}
+
+func TestMS(t *testing.T) {
+}
+
+func TestNewMicrosoftJwtParser(t *testing.T) {
+	t.Run("require audience or issuer", func(t *testing.T) {
+		_, err := NewMicrosoftJwtParser(MicrosoftJwtParserConfig{})
+		assert.ErrorContains(t, err, "allowed audience or issuer")
+	})
+
+	t.Run("accept audience config", func(t *testing.T) {
+		_, err := NewMicrosoftJwtParser(MicrosoftJwtParserConfig{
+			AllowedAudiences: []string{"client-id"},
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("accept issuer config", func(t *testing.T) {
+		_, err := NewMicrosoftJwtParser(MicrosoftJwtParserConfig{
+			AllowedIssuers: []string{"https://issuer.example.com"},
+		})
+		assert.NoError(t, err)
+	})
+}
+
+func TestMicrosoftJwtParserValidateClaims(t *testing.T) {
+	parser, err := NewMicrosoftJwtParser(MicrosoftJwtParserConfig{
+		AllowedAudiences: []string{"client-id"},
+		AllowedIssuers:   []string{"https://issuer.example.com"},
+	})
+	assert.NoError(t, err)
+
+	t.Run("accept matching audience and issuer", func(t *testing.T) {
+		err := parser.validateClaims(jwt.MapClaims{
+			"aud": "client-id",
+			"iss": "https://issuer.example.com",
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("reject mismatched audience", func(t *testing.T) {
+		err := parser.validateClaims(jwt.MapClaims{
+			"aud": "other-client",
+			"iss": "https://issuer.example.com",
+		})
+		assert.ErrorContains(t, err, "unexpected audience")
+	})
+
+	t.Run("reject mismatched issuer", func(t *testing.T) {
+		err := parser.validateClaims(jwt.MapClaims{
+			"aud": "client-id",
+			"iss": "https://other-issuer.example.com",
+		})
+		assert.ErrorContains(t, err, "unexpected issuer")
+	})
+
+	t.Run("legacy constructor skips claim checks", func(t *testing.T) {
+		parser := NewMicrosfotJwtParser(nil)
+		err := parser.validateClaims(jwt.MapClaims{
+			"aud": "other-client",
+			"iss": "https://other-issuer.example.com",
+		})
+		assert.NoError(t, err)
+	})
+}
+
+func TestParseJwtToken(t *testing.T) {
+	t.Run("return first successful parser payload", func(t *testing.T) {
+		payload, err := ParseJwtToken(
+			"token",
+			fakeJwtParser{err: errors.New("wrong issuer")},
+			fakeJwtParser{payload: UserPayload{Username: "alice"}},
+			fakeJwtParser{err: errors.New("should not be reached")},
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, "alice", payload.Username)
+	})
+
+	t.Run("return aggregated parser errors", func(t *testing.T) {
+		payload, err := ParseJwtToken(
+			"token",
+			fakeJwtParser{err: errors.New("wrong issuer")},
+			fakeJwtParser{err: errors.New("unexpected audience")},
+		)
+		assert.Equal(t, UserPayload{}, payload)
+		assert.Error(t, err)
+
+		appErr, ok := err.(Err)
+		assert.True(t, ok)
+		assert.Equal(t, 401, appErr.Code)
+		assert.Contains(t, appErr.Msg, "all parser failed")
+		assert.Contains(t, appErr.Msg, "wrong issuer")
+		assert.Contains(t, appErr.Msg, "unexpected audience")
+	})
 }

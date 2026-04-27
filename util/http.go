@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -93,20 +94,27 @@ func errHandle(ctx echo.Context, err error) error {
 	}
 }
 
-func buildReq(method, url string, query, header map[string]string, data any, ctx context.Context) (ret *http.Request, err error) {
-	var queryStr []string
-	for k, v := range query {
-		queryStr = append(queryStr, fmt.Sprintf("%s=%s", k, v))
+func buildReq(method, rawURL string, query, header map[string]string, data any, ctx context.Context) (ret *http.Request, err error) {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
 	}
-	if len(queryStr) != 0 {
-		url = url + "?" + strings.Join(queryStr, "&")
+	if len(query) != 0 {
+		values := parsedURL.Query()
+		for k, v := range query {
+			values.Set(k, v)
+		}
+		parsedURL.RawQuery = values.Encode()
 	}
 
-	b, _ := json.Marshal(data)
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
 	if ctx == nil {
-		ret, err = http.NewRequest(method, url, bytes.NewReader(b))
+		ret, err = http.NewRequest(method, parsedURL.String(), bytes.NewReader(b))
 	} else {
-		ret, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(b))
+		ret, err = http.NewRequestWithContext(ctx, method, parsedURL.String(), bytes.NewReader(b))
 	}
 
 	if data != nil {
@@ -201,7 +209,7 @@ func GetPayloads[T any](ctx echo.Context) (t []T, err error) {
 
 	for i := range t {
 		if err = Validator.Struct(t[i]); err != nil {
-			err = echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return t, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("payload[%d]: %s", i, err.Error()))
 		}
 	}
 
@@ -373,7 +381,7 @@ func UnmarshalResp[T any](resp *http.Response) (ret T, err error) {
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return ret, err
 	}
 	err = json.Unmarshal(body, &ret)
 	if err != nil {

@@ -2,8 +2,10 @@ package util
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -95,18 +97,7 @@ func NewTestClickhouseDB(migrationPath string) *sqlx.DB {
 }
 
 func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
-	var err error
-	var db *sqlx.DB
-
-	switch getDBFromUrl(url) {
-	case "postgres":
-		db, err = sqlx.Open("pgx", url)
-	case "clickhouse":
-		db, err = sqlx.Open("clickhouse", url)
-	default:
-		return nil
-	}
-
+	db, err := openDBByURL(url)
 	if err != nil {
 		panic(fmt.Errorf("error open db connection: %w", err))
 	}
@@ -127,25 +118,14 @@ func NewDBRetry(dbName, url string, dcfg DBConfig, retries, dur int) *sqlx.DB {
 
 func NewDB(dbName, url string, dcfg DBConfig) (db *sqlx.DB) {
 	var err error
-	switch getDBFromUrl(url) {
-	case "clickhouse":
-		db, err = sqlx.Open("clickhouse", url)
-		if err != nil {
-			panic("cannot get db connection: " + err.Error())
-		}
-	case "postgres":
-		db, err = sqlx.Open("pgx", url)
-		if err != nil {
-			panic("cannot get db connection: " + err.Error())
-		}
-
-		if err = db.Ping(); err != nil {
-			panic("cannot ping db: " + err.Error())
-		}
-
-		prepareDB(dbName, db, dcfg)
+	db, err = openDBByURL(url)
+	if err != nil {
+		panic("cannot get db connection: " + err.Error())
 	}
-
+	if err = db.Ping(); err != nil {
+		panic("cannot ping db: " + err.Error())
+	}
+	prepareDB(dbName, db, dcfg)
 	return db
 }
 
@@ -157,8 +137,7 @@ func prepareDB(dbName string, db *sqlx.DB, dcfg DBConfig) {
 	db.SetMaxIdleConns(dcfg.MaxIdelConn)
 	db.SetConnMaxLifetime(dcfg.ConnMaxLifetime)
 
-	switch db.DriverName() {
-	case "postgres":
+	if shouldSetPostgresTimezone(db.DriverName()) {
 		_, err = db.Exec(fmt.Sprintf("ALTER DATABASE %s SET timezone TO 'UTC'", dbName))
 		if err != nil {
 			panic("Error in setting timezone: " + err.Error())
@@ -170,6 +149,34 @@ func prepareDB(dbName string, db *sqlx.DB, dcfg DBConfig) {
 			panic("Error in setting session timezone: " + err.Error())
 		}
 	}
+}
+
+func shouldSetPostgresTimezone(driverName string) bool {
+	switch driverName {
+	case "postgres", "pgx":
+		return true
+	default:
+		return false
+	}
+}
+
+func dbDriverNameFromURL(url string) string {
+	switch getDBFromUrl(url) {
+	case "postgres":
+		return "pgx"
+	case "clickhouse":
+		return "clickhouse"
+	default:
+		return ""
+	}
+}
+
+func openDBByURL(url string) (*sqlx.DB, error) {
+	driverName := dbDriverNameFromURL(url)
+	if driverName == "" {
+		return nil, fmt.Errorf("unsupported db url: %s", url)
+	}
+	return sqlx.Open(driverName, url)
 }
 
 func getDBFromUrl(url string) string {
@@ -291,6 +298,7 @@ func UpdateClause(headers, pks []string, mergeStrategy map[string]string) string
 	return strings.Join(tmp, ", ")
 }
 
+// Deprecated: EQx interpolates values directly into SQL text. Use EQxArgs instead.
 func EQx[T any](name string, v T) string {
 	switch val := any(v).(type) {
 	case int, float64, bool:
@@ -308,6 +316,15 @@ func EQx[T any](name string, v T) string {
 	}
 }
 
+func EQxArgs[T any](name string, v T) (query string, args []any) {
+	val := reflect.ValueOf(v)
+	if val.IsValid() && val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+		return inArgs(name, val)
+	}
+	return fmt.Sprintf("%s = ?", name), []any{v}
+}
+
+// Deprecated: INx interpolates values directly into SQL text. Use INxArgs instead.
 func INx[T any](name string, ins []T) string {
 	var str []string
 	for _, i := range ins {
@@ -321,6 +338,25 @@ func INx[T any](name string, ins []T) string {
 	return fmt.Sprintf("%s IN (%s)", name, strings.Join(str, ","))
 }
 
+func INxArgs[T any](name string, ins []T) (query string, args []any) {
+	return inArgs(name, reflect.ValueOf(ins))
+}
+
+func inArgs(name string, values reflect.Value) (query string, args []any) {
+	if !values.IsValid() || values.Len() == 0 {
+		return "1=0", nil
+	}
+
+	args = make([]any, values.Len())
+	placeholders := make([]string, values.Len())
+	for i := 0; i < values.Len(); i++ {
+		args[i] = values.Index(i).Interface()
+		placeholders[i] = "?"
+	}
+	return fmt.Sprintf("%s IN (%s)", name, strings.Join(placeholders, ",")), args
+}
+
+// Deprecated: MultipleJsonbSet interpolates values directly into SQL text. Use MultipleJsonbSetArgs instead.
 func MultipleJsonbSet(fieldName string, setMap map[string]any) (ret string) {
 	build := func(field, k string, v any) string {
 		switch vv := v.(type) {
@@ -337,6 +373,32 @@ func MultipleJsonbSet(fieldName string, setMap map[string]any) (ret string) {
 		} else {
 			ret = build(ret, k, v)
 		}
+	}
+	return
+}
+
+func MultipleJsonbSetArgs(fieldName string, setMap map[string]any) (query string, args []any, err error) {
+	if len(setMap) == 0 {
+		return fieldName, nil, nil
+	}
+
+	for k, v := range setMap {
+		path := allTokens(k)
+		if len(path) == 1 && path[0] == "" {
+			return "", nil, errors.New("jsonb path cannot be empty")
+		}
+
+		payload, e := json.Marshal(v)
+		if e != nil {
+			return "", nil, e
+		}
+
+		if query == "" {
+			query = fmt.Sprintf("JSONB_SET(%s, ?::text[], ?::jsonb)", fieldName)
+		} else {
+			query = fmt.Sprintf("JSONB_SET(%s, ?::text[], ?::jsonb)", query)
+		}
+		args = append(args, pq.Array(path), string(payload))
 	}
 	return
 }
@@ -411,10 +473,21 @@ func ToPqStrArray[T any](arr []T) (ret pq.StringArray) {
 	return
 }
 
+// Deprecated: ValueListTable interpolates values directly into SQL text. Use ValueListTableArgs instead.
 func ValueListTable[T any](arr []T, label string) string {
 	return fmt.Sprintf("SELECT * FROM %s ", ValueList(arr, label, false))
 }
 
+func ValueListTableArgs[T any](arr []T, label string) (query string, args []any, err error) {
+	query, args, err = ValueListArgs(arr, label, false)
+	if err != nil {
+		return
+	}
+	query = fmt.Sprintf("SELECT * FROM %s ", query)
+	return
+}
+
+// Deprecated: ValueList interpolates values directly into SQL text. Use ValueListArgs instead.
 func ValueList[T any](arr []T, label string, withOrder bool) string {
 	var tmp = make([]string, len(arr))
 
@@ -439,6 +512,35 @@ func ValueList[T any](arr []T, label string, withOrder bool) string {
 	return fmt.Sprintf("(VALUES %s) a(%s)", strings.Join(tmp, ","), label)
 }
 
+func ValueListArgs[T any](arr []T, label string, withOrder bool) (query string, args []any, err error) {
+	if len(arr) == 0 {
+		return "", nil, errors.New("values list cannot be empty")
+	}
+
+	rows := make([]string, len(arr))
+	argSize := len(arr)
+	if withOrder {
+		argSize *= 2
+	}
+	args = make([]any, 0, argSize)
+
+	for i := range arr {
+		if withOrder {
+			rows[i] = "(?,?)"
+			args = append(args, arr[i], i)
+			continue
+		}
+		rows[i] = "(?)"
+		args = append(args, arr[i])
+	}
+
+	if withOrder {
+		label = fmt.Sprintf("%s,sort_order", label)
+	}
+	query = fmt.Sprintf("(VALUES %s) a(%s)", strings.Join(rows, ","), label)
+	return
+}
+
 func SelectStr(cols ...string) string {
 	return strings.Join(cols, ", ")
 }
@@ -450,6 +552,7 @@ func UpsertQuery(cols []string) string {
 	return strings.Join(cols, ", ")
 }
 
+// Deprecated: TimePointsFiller interpolates array values directly into SQL text. Use TimePointsFillerArgs instead.
 func TimePointsFiller(ids []string, pts []time.Time) string {
 	return fmt.Sprintf(
 		`SELECT id, time FROM 
@@ -459,6 +562,15 @@ func TimePointsFiller(ids []string, pts []time.Time) string {
 		dbArrayStr(ids),
 		timeArrayToStrArray(pts),
 	)
+}
+
+func TimePointsFillerArgs(ids []string, pts []time.Time) (query string, args []any) {
+	query = `SELECT id, time FROM 
+	    (SELECT id FROM UNNEST(?::text[]) t(id)) a(id)
+	    CROSS JOIN 
+	    (SELECT time FROM UNNEST(?::timestamptz[]) t(time)) b(time)`
+	args = []any{DBArrayArg(ids), DBArrayArg(pts)}
+	return
 }
 
 func timeArrayToStrArray(ts []time.Time) string {
@@ -480,6 +592,7 @@ func Range(start, end int) (ret []int) {
 	return
 }
 
+// Deprecated: DBArrayValues interpolates values directly into SQL text. Use DBArrayArg instead.
 func DBArrayValues[T any](array []T) string {
 	var tmp = make([]string, len(array))
 	for i := range array {
@@ -499,6 +612,10 @@ func DBArrayValues[T any](array []T) string {
 	return fmt.Sprintf("{%s}", strings.Join(tmp, ","))
 }
 
+func DBArrayArg[T any](array []T) any {
+	return pq.Array(array)
+}
+
 // collect coma separated one-level array token
 func allTokens(repr string) []string {
 	// remove trailing or leading comma (for whatever reason)
@@ -506,6 +623,9 @@ func allTokens(repr string) []string {
 
 	// remove brackets
 	repr = strings.Trim(strings.Trim(repr, "{"), "}")
+	if repr == "" {
+		return []string{}
+	}
 
 	ret := strings.Split(repr, ",")
 	for i, r := range ret {
@@ -518,6 +638,9 @@ func allTokens(repr string) []string {
 // supported type is based on the needed usecases (number, time, etc)
 func ParseDBArray[T any](repr string) (ret []T, err error) {
 	tokens := allTokens(repr)
+	if len(tokens) == 0 {
+		return []T{}, nil
+	}
 	var result any
 
 	switch any(*new(T)).(type) {
@@ -528,6 +651,9 @@ func ParseDBArray[T any](repr string) (ret []T, err error) {
 		var v int
 		for _, token := range tokens {
 			v, err = strconv.Atoi(token)
+			if err != nil {
+				return
+			}
 			res = append(res, v)
 		}
 		result = res
@@ -547,7 +673,7 @@ func ParseDBArray[T any](repr string) (ret []T, err error) {
 			res = append(res, v)
 		}
 		result = res
-	case float64, float32:
+	case float64:
 		var res []float64
 		var v float64
 		for _, token := range tokens {
@@ -555,6 +681,16 @@ func ParseDBArray[T any](repr string) (ret []T, err error) {
 				return
 			}
 			res = append(res, v)
+		}
+		result = res
+	case float32:
+		var res []float32
+		var v float64
+		for _, token := range tokens {
+			if v, err = strconv.ParseFloat(token, 32); err != nil {
+				return
+			}
+			res = append(res, float32(v))
 		}
 		result = res
 	case time.Time:

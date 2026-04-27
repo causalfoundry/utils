@@ -33,7 +33,19 @@ func Last[T any](arr []T) (ret T) {
 func NotNullCount(ts ...interface{}) int {
 	var cnt int
 	for _, t := range ts {
-		if !reflect.ValueOf(t).IsNil() {
+		val := reflect.ValueOf(t)
+		if !val.IsValid() {
+			continue
+		}
+
+		switch val.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if val.IsNil() {
+				continue
+			}
+		}
+
+		if val.IsValid() {
 			cnt++
 		}
 	}
@@ -407,10 +419,10 @@ func ContainsAny[T any](a, b []T) bool {
 // b contains all elements in a
 func ContainsAll[T any](a, b []T) bool {
 	if len(a) == 0 {
-		return false
+		return true
 	}
 	if len(b) == 0 {
-		return true
+		return false
 	}
 
 	for i := range a {

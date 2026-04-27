@@ -52,13 +52,32 @@ func (d *Decimal) UnmarshalJSON(data []byte) error {
 }
 
 func (o *Decimal) Scan(value any) (err error) {
-	str, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("cannot convert to string: %v, %T", value, value)
+	switch v := value.(type) {
+	case nil:
+		return errors.New("cannot scan nil into Decimal")
+	case Decimal:
+		*o = v
+		return nil
+	case decimal.Decimal:
+		*o = Decimal(v)
+		return nil
+	case string:
+		d, err := decimal.NewFromString(v)
+		if err != nil {
+			return err
+		}
+		*o = Decimal(d)
+		return nil
+	case []byte:
+		d, err := decimal.NewFromString(string(v))
+		if err != nil {
+			return err
+		}
+		*o = Decimal(d)
+		return nil
+	default:
+		return fmt.Errorf("cannot convert to decimal: %v, %T", value, value)
 	}
-	d, err := decimal.NewFromString(str)
-	*o = Decimal(d)
-	return
 }
 
 func (o Decimal) Value() (driver.Value, error) {

@@ -30,7 +30,7 @@ func ExtractTags(input any, tagName string, skip []string) (tags []string, vals 
 			tag := ty.Tag.Get(tagName)
 			val := va.Interface()
 
-			if tag == "-" || (len(skip) != 0 && Contains(tag, skip)) {
+			if tag == "" || tag == "-" || (len(skip) != 0 && Contains(tag, skip)) {
 				continue
 			}
 			tags = append(tags, tag)

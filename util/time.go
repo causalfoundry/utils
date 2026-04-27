@@ -202,7 +202,7 @@ func SameDate(a, b time.Time) bool {
 
 func RandomMomentInADay(t time.Time) time.Time {
 	y, m, d := t.Date()
-	return time.Date(y, m, d, rand.Intn(23), rand.Intn(59), rand.Intn(59), rand.Intn(10000), t.Location())
+	return time.Date(y, m, d, rand.Intn(24), rand.Intn(60), rand.Intn(60), rand.Intn(10000), t.Location())
 }
 
 func adjustedWeekday(t time.Time) int {
@@ -375,39 +375,64 @@ func ToTZ(ts string) (ret TZ, err error) {
 	return
 }
 
-func TimeByTz(t time.Time, tz TZ) time.Time {
-	t = t.UTC()
+func parseTZOffset(tz TZ) (normalized TZ, offsetSeconds int, err error) {
 	if tz == "Z" {
 		tz = "+00:00"
 	}
-	polarity := tz[0]
-	split := strings.Split(string(tz[1:]), ":")
-	hr, _ := strconv.Atoi(split[0])
-	mi, _ := strconv.Atoi(split[1])
-
-	switch polarity {
-	case '+':
-		t = t.Add(time.Hour*time.Duration(hr) + time.Minute*time.Duration(mi))
-	case '-':
-		t = t.Add(-time.Hour*time.Duration(hr) - time.Minute*time.Duration(mi))
-	default:
-		panic(fmt.Errorf("wrong polarity: %b", polarity))
+	if len(tz) != 6 || (tz[0] != '+' && tz[0] != '-') || tz[3] != ':' {
+		return "", 0, fmt.Errorf("invalid timezone format: %s", tz)
 	}
 
-	format := "2006-01-02T15:04:05"
-	t, err := time.Parse(time.RFC3339, fmt.Sprintf("%s%s", t.Format(format), tz))
+	hr, err := strconv.Atoi(string(tz[1:3]))
 	if err != nil {
-		panic(fmt.Errorf("error parse date in NowByTZ, tz: %s, t: %v", tz, t))
+		return "", 0, fmt.Errorf("invalid timezone hour: %s", tz)
 	}
-	return t
+	mi, err := strconv.Atoi(string(tz[4:6]))
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid timezone minute: %s", tz)
+	}
+	if hr > 23 || mi > 59 {
+		return "", 0, fmt.Errorf("invalid timezone offset: %s", tz)
+	}
+
+	offsetSeconds = hr*3600 + mi*60
+	if tz[0] == '-' {
+		offsetSeconds = -offsetSeconds
+	}
+	return tz, offsetSeconds, nil
 }
 
-func NowByTZ(tz TZ) time.Time {
+func TimeByTzE(t time.Time, tz TZ) (time.Time, error) {
+	normalized, offsetSeconds, err := parseTZOffset(tz)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return t.UTC().In(time.FixedZone(string(normalized), offsetSeconds)), nil
+}
+
+func TimeByTz(t time.Time, tz TZ) time.Time {
+	ret, err := TimeByTzE(t, tz)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
+func NowByTZE(tz TZ) (time.Time, error) {
 	switch tz {
 	case "", "Z":
 		tz = "+00:00"
 	}
-	return TimeByTz(time.Now().UTC(), tz)
+	return TimeByTzE(time.Now().UTC(), tz)
+}
+
+func NowByTZ(tz TZ) time.Time {
+	ret, err := NowByTZE(tz)
+	if err != nil {
+		panic(err)
+	}
+	return ret
 }
 
 func YesterdayByTZ(tz TZ) time.Time {
@@ -445,7 +470,7 @@ func DateUTC(y, m, d int) time.Time {
 
 // random moment in the same date
 func RM(t time.Time) time.Time {
-	return ToDate(t).Add(time.Second * time.Duration(rand.Intn(3600*23)))
+	return ToDate(t).Add(time.Second * time.Duration(rand.Intn(24*3600)))
 }
 
 func MaxDayInMonth(month int) (day int) {

@@ -1,6 +1,8 @@
 package util
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"testing"
 
@@ -72,6 +74,25 @@ func TestGetPayload(t *testing.T) {
 		assert.Equal(t, g.Greet, "hello")
 		assert.Equal(t, g.Target, "")
 	})
+
+	t.Run("test slice fail includes index", func(t *testing.T) {
+		payload := []greet{
+			{Target: "a", Greet: "hello"},
+			{Target: "", Greet: "hello"},
+			{Target: "c", Greet: "hello"},
+		}
+		kit := NewHttpTestKit(e, RequestCfg{
+			Payload: payload,
+		})
+
+		g, err := GetPayloads[greet](kit.Ctx)
+		assert.NotNil(t, err)
+		httpErr, ok := err.(*echo.HTTPError)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, httpErr.Code)
+		assert.Contains(t, httpErr.Message, "payload[1]")
+		assert.Equal(t, payload, g)
+	})
 }
 
 func TestBind(t *testing.T) {
@@ -104,4 +125,57 @@ func TestBind(t *testing.T) {
 
 	err = Bind(kit.Ctx, &req2)
 	assert.NotNil(t, err)
+}
+
+func TestBuildReqEncodesQuery(t *testing.T) {
+	req, err := buildReq(
+		http.MethodGet,
+		"http://example.com/search?existing=1",
+		map[string]string{
+			"q":   "a b&c",
+			"tag": "x/y",
+		},
+		nil,
+		nil,
+		nil,
+	)
+	assert.Nil(t, err)
+	assert.Equal(t, "existing=1&q=a+b%26c&tag=x%2Fy", req.URL.RawQuery)
+	assert.Equal(t, "a b&c", req.URL.Query().Get("q"))
+	assert.Equal(t, "x/y", req.URL.Query().Get("tag"))
+}
+
+func TestBuildReqReturnsMarshalError(t *testing.T) {
+	type badPayload struct {
+		Ch chan int `json:"ch"`
+	}
+
+	_, err := buildReq(
+		http.MethodPost,
+		"http://example.com/search",
+		nil,
+		nil,
+		badPayload{Ch: make(chan int)},
+		nil,
+	)
+	assert.NotNil(t, err)
+}
+
+type errReadCloser struct{}
+
+func (errReadCloser) Read(_ []byte) (int, error) {
+	return 0, errors.New("read failure")
+}
+
+func (errReadCloser) Close() error {
+	return nil
+}
+
+func TestUnmarshalRespReturnsReadError(t *testing.T) {
+	resp := &http.Response{
+		Body: io.NopCloser(errReadCloser{}),
+	}
+
+	_, err := UnmarshalResp[map[string]any](resp)
+	assert.ErrorContains(t, err, "read failure")
 }

@@ -160,6 +160,29 @@ func TestToTZ(t *testing.T) {
 	assert.Equal(t, tz, TZ("+05:00"))
 }
 
+func TestTimeByTzE(t *testing.T) {
+	base := DateUTC(2020, 1, 1).Add(2 * time.Hour)
+
+	ret, err := TimeByTzE(base, "+08:00")
+	assert.Nil(t, err)
+	assert.Equal(t, "2020-01-01T10:00:00+08:00", ret.Format(time.RFC3339))
+
+	ret, err = TimeByTzE(base, "-05:30")
+	assert.Nil(t, err)
+	assert.Equal(t, "2019-12-31T20:30:00-05:30", ret.Format(time.RFC3339))
+}
+
+func TestTimeByTzEInvalid(t *testing.T) {
+	_, err := TimeByTzE(time.Now(), "bad")
+	assert.ErrorContains(t, err, "invalid timezone format")
+
+	_, err = TimeByTzE(time.Now(), "+24:00")
+	assert.ErrorContains(t, err, "invalid timezone offset")
+
+	_, err = NowByTZE("+8:00")
+	assert.ErrorContains(t, err, "invalid timezone format")
+}
+
 func TestYesterdayTZ(t *testing.T) {
 	tt := YesterdayByTZ("+08:00")
 	fmt.Println(tt)
@@ -180,6 +203,32 @@ func TestDatesFromToDay(t *testing.T) {
 func TestMonthesFromToday(t *testing.T) {
 	dates := MonthsFromToday(-3, -1)
 	assert.Len(t, dates, 3)
+}
+
+func TestRandomMomentInADayWithinDay(t *testing.T) {
+	base := DateUTC(2024, 1, 15)
+	dayEnd := base.Add(24 * time.Hour)
+
+	for i := 0; i < 200; i++ {
+		ret := RandomMomentInADay(base)
+		assert.False(t, ret.Before(base))
+		assert.True(t, ret.Before(dayEnd))
+		assert.Equal(t, base.Year(), ret.Year())
+		assert.Equal(t, base.Month(), ret.Month())
+		assert.Equal(t, base.Day(), ret.Day())
+	}
+}
+
+func TestRMWithinDay(t *testing.T) {
+	base := DateUTC(2024, 1, 15).Add(10 * time.Hour)
+	start := ToDate(base)
+	dayEnd := start.Add(24 * time.Hour)
+
+	for i := 0; i < 200; i++ {
+		ret := RM(base)
+		assert.False(t, ret.Before(start))
+		assert.True(t, ret.Before(dayEnd))
+	}
 }
 
 func TestTsPoints(t *testing.T) {

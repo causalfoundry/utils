@@ -16,8 +16,8 @@ type PaginatedResult struct {
 }
 
 // Error implements error
-func (PaginatedResult) Error() string {
-	panic("unimplemented")
+func (p PaginatedResult) Error() string {
+	return fmt.Sprintf("paginated result: total=%d", p.Total)
 }
 
 type Page struct {

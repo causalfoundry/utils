@@ -65,7 +65,31 @@ func TestUniqueOf(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
-	assert.False(t, ContainsAll([]string{}, []string{"a", "b"}))
+	assert.True(t, ContainsAll([]string{}, []string{"a", "b"}))
+	assert.False(t, ContainsAll([]string{"a"}, []string{}))
+	assert.True(t, ContainsAll([]string{"a", "b"}, []string{"a", "b", "c"}))
+	assert.False(t, ContainsAll([]string{"a", "d"}, []string{"a", "b", "c"}))
+}
+
+func TestNotNullCount(t *testing.T) {
+	var (
+		nilPtr   *int
+		nilMap   map[string]int
+		nilSlice []int
+	)
+	val := 3
+
+	assert.Equal(t, 5, NotNullCount(
+		nil,
+		1,
+		"x",
+		&val,
+		nilPtr,
+		nilMap,
+		nilSlice,
+		[]int{},
+		map[string]int{},
+	))
 }
 
 func TestSliceEqual(t *testing.T) {

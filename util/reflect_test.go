@@ -33,3 +33,18 @@ func TestStructReflect(t *testing.T) {
 	dtypes = StructDataType(a, "json")
 	assert.Equal(t, dtypes, []string{"string", "int", "time", "_int", "_time"})
 }
+
+func TestExtractTagsSkipsMissingRequestedTag(t *testing.T) {
+	type mixedTags struct {
+		ID   int    `json:"id"`
+		Name string `db:"name" json:"name"`
+	}
+
+	tags, vals := ExtractTags(mixedTags{
+		ID:   1,
+		Name: "alice",
+	}, "db", nil)
+
+	assert.Equal(t, []string{"name"}, tags)
+	assert.Equal(t, []any{"alice"}, vals)
+}

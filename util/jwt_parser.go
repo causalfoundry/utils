@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -33,20 +34,93 @@ type JwtParser interface {
 
 // ---------------- ms -------------------
 type MicroSoftJwtParser struct {
-	log      zerolog.Logger
-	exceptFn ExceptFn
+	log              zerolog.Logger
+	exceptFn         ExceptFn
+	jwksURL          string
+	allowedAudiences map[string]struct{}
+	allowedIssuers   map[string]struct{}
 }
 
 var _ JwtParser = MicroSoftJwtParser{}
 
+type MicrosoftJwtParserConfig struct {
+	AllowedAudiences []string
+	AllowedIssuers   []string
+	ExceptFn         ExceptFn
+	JwksURL          string
+}
+
+var microsoftValidMethods = []string{"RS256"}
+
 func NewMicrosfotJwtParser(exceptFn ExceptFn) MicroSoftJwtParser {
-	return MicroSoftJwtParser{
-		log:      NewLogger("auth.microsoft-jwt-parser"),
-		exceptFn: exceptFn,
+	return newMicrosoftJwtParser(MicrosoftJwtParserConfig{
+		ExceptFn: exceptFn,
+	})
+}
+
+func NewMicrosoftJwtParser(cfg MicrosoftJwtParserConfig) (MicroSoftJwtParser, error) {
+	if len(cfg.AllowedAudiences) == 0 && len(cfg.AllowedIssuers) == 0 {
+		return MicroSoftJwtParser{}, errors.New("microsoft jwt parser requires at least one allowed audience or issuer")
 	}
+	return newMicrosoftJwtParser(cfg), nil
 }
 
 const MicrosoftJwksUrl = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+
+func newMicrosoftJwtParser(cfg MicrosoftJwtParserConfig) MicroSoftJwtParser {
+	jwksURL := cfg.JwksURL
+	if jwksURL == "" {
+		jwksURL = MicrosoftJwksUrl
+	}
+
+	return MicroSoftJwtParser{
+		log:              NewLogger("auth.microsoft-jwt-parser"),
+		exceptFn:         cfg.ExceptFn,
+		jwksURL:          jwksURL,
+		allowedAudiences: toStringSet(cfg.AllowedAudiences),
+		allowedIssuers:   toStringSet(cfg.AllowedIssuers),
+	}
+}
+
+func toStringSet(values []string) map[string]struct{} {
+	ret := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		ret[value] = struct{}{}
+	}
+	return ret
+}
+
+func (g MicroSoftJwtParser) validateClaims(claims jwt.MapClaims) error {
+	if len(g.allowedAudiences) != 0 {
+		audiences, err := claims.GetAudience()
+		if err != nil {
+			return fmt.Errorf("error get audience claim: %w", err)
+		}
+
+		var found bool
+		for _, aud := range audiences {
+			if _, ok := g.allowedAudiences[aud]; ok {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unexpected audience: %v", []string(audiences))
+		}
+	}
+
+	if len(g.allowedIssuers) != 0 {
+		issuer, err := claims.GetIssuer()
+		if err != nil {
+			return fmt.Errorf("error get issuer claim: %w", err)
+		}
+		if _, ok := g.allowedIssuers[issuer]; !ok {
+			return fmt.Errorf("unexpected issuer: %s", issuer)
+		}
+	}
+
+	return nil
+}
 
 // TokenToUsername implements JwtParser
 func (g MicroSoftJwtParser) TokenToPayload(token string) (ret UserPayload, err error) {
@@ -60,17 +134,25 @@ func (g MicroSoftJwtParser) TokenToPayload(token string) (ret UserPayload, err e
 	// Get the JSON Web Key Sets (JWKS) from Microsoft
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	funcs, err := keyfunc.NewDefaultCtx(ctx, []string{MicrosoftJwksUrl})
+	funcs, err := keyfunc.NewDefaultCtx(ctx, []string{g.jwksURL})
 	if err != nil {
 		return
 	}
 
-	jwtToken, err := jwt.Parse(token, funcs.Keyfunc)
+	jwtToken, err := jwt.Parse(token, funcs.Keyfunc, jwt.WithValidMethods(microsoftValidMethods))
 	if err != nil {
 		return
 	}
 
-	claims := jwtToken.Claims.(jwt.MapClaims)
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+	if !ok {
+		err = fmt.Errorf("unexpected microsoft claims type: %T", jwtToken.Claims)
+		return
+	}
+	if err = g.validateClaims(claims); err != nil {
+		err = NewErr(http.StatusUnauthorized, err.Error(), nil)
+		return
+	}
 	ret.Email = fmt.Sprint(claims["preferred_username"])
 	ret.Name = fmt.Sprint(claims["name"])
 	ret.Username = fmt.Sprint(claims["preferred_username"])

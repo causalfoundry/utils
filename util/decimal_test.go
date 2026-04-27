@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,4 +67,23 @@ func TestDecimalSerialization(t *testing.T) {
 	e = json.Unmarshal([]byte(a), &d)
 	assert.Nil(t, e)
 	assert.Equal(t, NewDecimalF(212).String(), d.String())
+}
+
+func TestDecimalScan(t *testing.T) {
+	var d Decimal
+
+	assert.Nil(t, d.Scan("12.34"))
+	assert.Equal(t, "12.34", d.String())
+
+	assert.Nil(t, d.Scan([]byte("56.78")))
+	assert.Equal(t, "56.78", d.String())
+
+	base := decimal.RequireFromString("90.12")
+	assert.Nil(t, d.Scan(base))
+	assert.Equal(t, "90.12", d.String())
+
+	assert.Nil(t, d.Scan(Decimal(base)))
+	assert.Equal(t, "90.12", d.String())
+
+	assert.NotNil(t, d.Scan(nil))
 }
